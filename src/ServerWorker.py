@@ -1,5 +1,7 @@
+from os import pipe
 from random import randint
 import sys, traceback, threading, socket
+from tkinter import Frame
 
 from VideoStream import VideoStream
 from RtpPacket import RtpPacket
