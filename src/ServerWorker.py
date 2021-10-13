@@ -5,6 +5,7 @@ from tkinter import Frame
 
 from VideoStream import VideoStream
 from RtpPacket import RtpPacket
+import RtspProcessor
 
 class ServerWorker:
 	SETUP = 'SETUP'
