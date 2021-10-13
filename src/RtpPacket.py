@@ -19,9 +19,46 @@ class RtpPacket:
 		
 		# header[0] = ...
 		# ...
+
+		# Set version(V)
+		header[0] = (version << 6) & 0xFF
+
+		# Set padding(P)
+		header[0] = header[0] | padding << 5
+
+		# Set extension(X)
+		header[0] = header[0] | extension << 4
+
+		# Set number of contributing source (CC)
+		header[0] = header[0] | cc
+
+		# Set marker fields (M)
+		header[1] = marker << 7
+
+		# Set payload type (PT)
+		header[1] = header[1] | pt
 		
+		# Set sequence number (frame number)
+		header[2] = (seqnum >> 8) & 0xFF
+		header[3] = seqnum & 0xFF
+		print(hex(header[3]))
+
+		# Set timestamp byte 4 - 7
+		header[4] = (timestamp >> 24) & 0xFF
+		header[5] = (timestamp >> 16) & 0xFF
+		header[6] = (timestamp >> 8) & 0xFF
+		header[7] = timestamp & 0xFF
+
+
+		# Set source identifier (SSRC) byte 8 - 11
+		header[8] = (ssrc >> 24) & 0xFF
+		header[9] = (ssrc >> 16) & 0xFF
+		header[10] = (ssrc >> 8) & 0xFF
+		header[11] = ssrc & 0xFF
+
+		self.header = header
 		# Get the payload from the argument
-		# self.payload = ...
+		self.payload = payload
 		
 	def decode(self, byteStream):
 		"""Decode the RTP packet."""
