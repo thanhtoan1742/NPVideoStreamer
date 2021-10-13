@@ -34,7 +34,7 @@ class Client:
         rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         rtspSocket.connect((self.serverAddr, self.rtspPort))
-        self.rtspProcessor = RtspProcessor.Processor(rtspSocket, self.rtpPort, self.fileName)
+        self.rtspProcessor = RtspProcessor.Client(rtspSocket, self.rtpPort, self.fileName)
 
     def createWidgets(self):
         """Build GUI."""

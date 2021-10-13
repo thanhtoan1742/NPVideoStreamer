@@ -2,6 +2,12 @@ from enum import Enum
 from random import randint
 import socket
 
+def log(message: str, header: str = ""):
+    print("-"*40)
+    print(header)
+    print(message)
+    print("-"*40)
+
 class Method:
     SETUP = "SETUP"
     PLAY = "PLAY"
@@ -22,7 +28,7 @@ class StatusCode:
 class Processor:
     """
     RTSP processor
-    only allows play 1 file on 1 RTP port.
+    only allows play 1 file on 1 RTP port over 1 session.
     """
     def __init__(self, socket: socket.socket, rtpPort: int, fileName: str) -> None:
         """
@@ -38,47 +44,85 @@ class Processor:
     def __del__(self):
         self.socket.close()
 
-    def createRequest(self, method: Method) -> str:
-        self.CSeq += 1
-
-        request = f"{method} {self.fileName} RTSP/1.0\n"
-        request += f"CSeq: {self.CSeq}\n"
-        if method == Method.SETUP:
-            self.session = randint(100000, 999999)
-            request += f"Transport: RTP/UDP; client_port={self.rtpPort}\n"
-        else:
-            assert self.session != 0
-            request += f"Session: {self.session}\n"
-
-        return request
-
-    def createRespond(self, statusCode: StatusCode, CSeq: int) -> str:
-        respond = f"RTSP/1.0 {statusCode} {StatusCode.DESCRIPTION[statusCode]}"
-        assert CSeq != 0
-        respond += f"CSeq: {self.CSeq}\n"
-        assert self.session != 0
-        respond += f"Session: {self.session}\n"
-
-        return respond
-
     def sendMessage(self, message: str) -> None:
-        print("\nsend\n", message, sep="")
         self.socket.sendall(message.encode())
 
     def receiveMessage(self) -> str:
         message = self.socket.recv(1024)
-        print("\nreceive\n", str(message), sep="")
-        return str(message)
+        return message.decode()
 
-    def sendRequest(self, method: Method) -> None:
-        message = self.createRequest(method)
+
+
+
+
+class Client(Processor):
+    def __init__(self, socket: socket.socket, rtpPort: int, fileName: str) -> None:
+        super().__init__(socket, rtpPort, fileName)
+
+    def createRequestMessage(self, method: Method) -> str:
+        self.CSeq += 1
+
+        message = f"{method} {self.fileName} RTSP/1.0\n"
+        message += f"CSeq: {self.CSeq}\n"
+        if method == Method.SETUP:
+            message += f"Transport: RTP/UDP; client_port={self.rtpPort}\n"
+        else:
+            assert self.session != 0
+            message += f"Session: {self.session}\n"
+
+        return message
+
+    def sendRequest(self, method: Method) -> dict:
+        message = self.createRequestMessage(method)
         self.sendMessage(message)
 
+        respond = self.receiveRespond()
+        self.session = respond["session"]
+
+        return respond
+
+    def parseRespond(self, message: str) -> dict:
+        log(message, "parse respond")
+        respond = {}
+
+        lines = message.split('\n')
+        line = lines[0].split()
+        respond["statusCode"] = int(line[1])
+
+        line = lines[1].split(":")
+        respond["CSeq"] = int(line[1])
+
+        line = lines[2].split(":")
+        respond["session"] = int(line[1])
+
+        return respond
+
+    def receiveRespond(self) -> dict:
+        message = self.receiveMessage()
+        return self.parseRespond(message)
+
+
+
+
+class Server(Processor):
+    def __init__(self, socket: socket.socket, rtpPort: int, fileName: str) -> None:
+        super().__init__(socket, rtpPort, fileName)
+
+    def createRespondMessage(self, statusCode: StatusCode, CSeq: int) -> str:
+        message = f"RTSP/1.0 {statusCode} {StatusCode.DESCRIPTION[statusCode]}"
+        assert CSeq != 0
+        message += f"CSeq: {self.CSeq}\n"
+        assert self.session != 0
+        message += f"Session: {self.session}\n"
+
+        return message
+
     def sendRespond(self, statusCode: StatusCode, CSeq: int) -> None:
-        message = self.createRespond(statusCode, CSeq)
+        message = self.createRespondMessage(statusCode, CSeq)
         self.sendMessage(message)
 
     def parseRequest(self, message: str) -> dict:
+        log(message, "parse request")
         request = {}
 
         lines = message.split('\n')
@@ -94,17 +138,12 @@ class Processor:
 
         return request
 
-    def parseRespond(self, message: str) -> dict:
-        respond = {}
+    def receiveRequest(self) -> dict:
+        message = self.receiveMessage()
+        request = self.parseRequest(message)
 
-        lines = message.split('\n')
-        line = lines[0].split()
-        respond["statusCode"] = int(line[1])
+        if request["method"] == Method.SETUP:
+            self.session = randint(100000, 999999)
+        self.CSeq = request["CSeq"]
 
-        line = lines[1].split(":")
-        respond["CSeq"] = int(line[1])
-
-        line = lines[2].split(":")
-        respond["session"] = int(line[1])
-
-        return respond
+        return request
