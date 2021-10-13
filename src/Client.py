@@ -19,25 +19,43 @@ class Client:
 	PAUSE = 2
 	TEARDOWN = 3
 	
-	def __init__(self, master, serveraddr, serverport, rtpport, filename):
-		self.master = master
-		self.master.protocol("WM_DELETE_WINDOW", self.handler)
+	def __init__(self, serverAddr, serverPort, rtpPort, fileName):
+		self.serverAddr = serverAddr
+		self.serverPort = serverPort
+		self.rtpPort = rtpPort
+		self.fileName = fileName
+
+		self.connectToServer()
 		self.createWidgets()
-		self.serverAddr = serveraddr
-		self.serverPort = int(serverport)
-		self.rtpPort = int(rtpport)
-		self.fileName = filename
+
+	def connectToServer(self):
+		"""Connect to the Server. Start a new RTSP/TCP session."""
 		self.rtspSeq = 0
 		self.sessionId = 0
 		self.requestSent = -1
 		self.teardownAcked = 0
-		self.connectToServer()
 		self.frameNbr = 0
+
+		self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+		self.rtspSocket.connect((self.serverAddr, self.serverPort))
+		self.rtspSocket.sendall(b'ping')
+		message = self.rtspSocket.recv(16)
+		print(message)
+
+
+
+	def __del__(self):
+		self.rtspSocket.close()
+		print("client destroyed")
 		
 	# Initiatio
 	# THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI 	
 	def createWidgets(self):
 		"""Build GUI."""
+		self.master = Tk()
+		self.master.title('Client')
+
 		# Create Setup button
 		self.setup = Button(self.master, width=20, padx=3, pady=3)
 		self.setup["text"] = "Setup"
@@ -65,6 +83,9 @@ class Client:
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
 		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
+
+		# self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
+
 	
 	def setupMovie(self):
 		"""Setup button handler."""
@@ -94,9 +115,6 @@ class Client:
 		"""Update the image file as video frame in the GUI."""
 	#TODO
 		
-	def connectToServer(self):
-		"""Connect to the Server. Start a new RTSP/TCP session."""
-	#TODO
 	
 	def sendRtspRequest(self, requestCode):
 		"""Send RTSP request to the server."""	
@@ -125,7 +143,20 @@ class Client:
 		# Set the timeout value of the socket to 0.5sec
 		# ...
 		
+	def run(self):
+		self.master.mainloop()
 
-	def handler(self):
-		"""Handler on explicitly closing the GUI window."""
-		#TODO
+if __name__ == "__main__":
+	try:
+		serverAddr = sys.argv[1]
+		serverPort = int(sys.argv[2])
+		rtpPort = int(sys.argv[3])
+		fileName = sys.argv[4]	
+	except:
+		print("Usage: ClientLauncher.py Server_name Server_port RTP_port Video_file\n")	
+	
+	
+	# Create a new client
+	app = Client(serverAddr, serverPort, rtpPort, fileName)
+	app.run()
+	

@@ -1,4 +1,5 @@
 import sys, socket
+from RtpPacket import RtpPacket
 
 from ServerWorker import ServerWorker
 
@@ -13,10 +14,19 @@ class Server:
 		rtspSocket.bind(('', SERVER_PORT))
 		rtspSocket.listen(5)        
 
+		print("created server")
+
 		# Receive client info (address,port) through RTSP/TCP session
 		while True:
 			clientInfo = {}
 			clientInfo['rtspSocket'] = rtspSocket.accept()
+
+			s = clientInfo['rtspSocket'][0]
+			message = s.recv(16)
+			print(message)
+			s.sendall(message)
+
+
 			ServerWorker(clientInfo).run()		
 
 if __name__ == "__main__":
