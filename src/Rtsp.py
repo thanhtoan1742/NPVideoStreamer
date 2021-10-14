@@ -21,15 +21,14 @@ class StatusCode:
 def createRequest(method: Method, CSeq: int, fileName: str, session: int = -1, rtpPort: int = -1) -> str:
     message = f"{method} {fileName} RTSP/1.0\n"
     message += f"CSeq: {CSeq}\n"
-    if method == Method.SETUP:
+    if rtpPort != -1:
         message += f"Transport: RTP/UDP; client_port={rtpPort}\n"
-    else:
+    if session != -1:
         message += f"Session: {session}\n"
 
-    return message
+    return message.strip()
 
 def parseRequest(message: str) -> dict:
-    log(message, "parse request")
     request = {}
 
     lines = message.split('\n')
@@ -43,19 +42,20 @@ def parseRequest(message: str) -> dict:
     if request["method"] == Method.SETUP:
         line = lines[2].split("=")
         request["rtpPort"] = int(line[1])
-        pass
     else:
-        line = lines[2].split(":")
-        request["session"] = int(line[1])
+        if len(lines) > 2:
+            line = lines[2].split(":")
+            request["session"] = int(line[1])
 
     return request
 
 
-def createRespond(statusCode: StatusCode, CSeq: int, session: int) -> str:
-    message = f"RTSP/1.0 {statusCode} {StatusCode.DESCRIPTION[statusCode]}"
+def createRespond(statusCode: StatusCode, CSeq: int, session: int = -1) -> str:
+    message = f"RTSP/1.0 {statusCode} {StatusCode.DESCRIPTION[statusCode]}\n"
     message += f"CSeq: {CSeq}\n"
-    message += f"Session: {session}\n"
-    return message
+    if session != -1:
+        message += f"Session: {session}\n"
+    return message.strip()
 
 
 def parseRespond(message: str) -> dict:
@@ -68,7 +68,8 @@ def parseRespond(message: str) -> dict:
     line = lines[1].split(":")
     respond["CSeq"] = int(line[1])
 
-    line = lines[2].split(":")
-    respond["session"] = int(line[1])
+    if len(lines) > 2:
+        line = lines[2].split(":")
+        respond["session"] = int(line[1])
 
     return respond

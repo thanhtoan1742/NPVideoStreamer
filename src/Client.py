@@ -70,23 +70,39 @@ class Client(Player):
     def __del__(self) -> None:
         print("client destroyed")
 
-    def _setup_(self) -> bool:
+    def sendRtspRequest(self, method: Rtsp.Method) -> bool:
         self.CSeq += 1
-        message = Rtsp.createRequest(Rtsp.Method.SETUP, self.CSeq, self.fileName, rtpPort=self.rtpPort)
-        log(message, "request")
+        if method == Rtsp.Method.SETUP:
+            message = Rtsp.createRequest(Rtsp.Method.SETUP, self.CSeq, self.fileName, rtpPort=self.rtpPort)
+        else:
+            message = Rtsp.createRequest(method, self.CSeq, self.fileName, session=self.session)
+        log(message, "client send")
         self.rtspSocket.sendall(message.encode())
 
         message = self.rtspSocket.recv(1024).decode()
-        log(message, "respond")
+        log(message, "client receive")
         respond = Rtsp.parseRespond(message)
         if respond["statusCode"] > 299:
             print(respond["statusCode"])
             return False
 
-        self.session = respond["session"]
+        if method == Rtsp.Method.SETUP:
+            self.session = respond["session"]
 
         return True
 
+
+    def _setup_(self) -> bool:
+        return self.sendRtspRequest(Rtsp.Method.SETUP)
+
+    def _play_(self) -> bool:
+        return self.sendRtspRequest(Rtsp.Method.PLAY)
+
+    def _pause_(self) -> bool:
+        return self.sendRtspRequest(Rtsp.Method.PAUSE)
+
+    def _teardown_(self) -> bool:
+        return self.sendRtspRequest(Rtsp.Method.TEARDOWN)
 
     def run(self) -> None:
         self.guiRoot.mainloop()
