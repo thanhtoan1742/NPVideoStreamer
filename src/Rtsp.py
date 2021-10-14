@@ -15,7 +15,7 @@ class StatusCode:
     DESCRIPTION = {
         OK: "OK",
         FILE_NOT_FOUND: "FILE_NOT_FOUND",
-        CONNECTION_ERROR: "CONNECTION_ERROR" 
+        CONNECTION_ERROR: "CONNECTION_ERROR"
     }
 
 def createRequest(method: Method, CSeq: int, fileName: str, session: int = -1, rtpPort: int = -1) -> str:
