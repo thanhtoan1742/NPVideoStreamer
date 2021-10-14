@@ -3,112 +3,104 @@ import tkinter.messagebox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
 
+from common import *
 from RtpPacket import RtpPacket
-import RtspProcessor
+from Player import Player
+import Rtsp
 
 CACHE_FILE_NAME = "cache-"
 CACHE_FILE_EXT = ".jpg"
 
-class Client:
-    INIT = 0
-    READY = 1
-    PLAYING = 2
-    state = INIT
-    
-    def __init__(self, serverAddr, rtspPort, rtpPort, fileName):
-        self.serverAddr = serverAddr
+class Client(Player):
+    def __init__(self, serverIp: str, rtspPort: int, rtpPort: int, fileName: str) -> None:
+        super().__init__()
+
+        self.serverIp = serverIp
         self.rtspPort = rtspPort
         self.rtpPort = rtpPort
         self.fileName = fileName
 
-        self.connectToServer()
-        self.createWidgets()
+        self.initRtsp()
+        self.initGUI()
 
-        self.frameNbr = 0
-
-
-    def connectToServer(self):
+    def initRtsp(self) -> None:
         """Connect to the Server. Start a new RTSP/TCP session."""
-        # the owner of the rtsp socket is the processor even though 
-        # the socket is created outside the processor
-        rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        rtspSocket.connect((self.serverAddr, self.rtspPort))
-        self.rtspProcessor = RtspProcessor.Client(rtspSocket, self.rtpPort, self.fileName)
+        self.CSeq = 0
+        self.session = -1
 
-    def createWidgets(self):
+        self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.rtspSocket.connect((self.serverIp, self.rtspPort))
+
+    def initGUI(self) -> None:
         """Build GUI."""
-        self.master = Tk()
-        self.master.title('Client')
+        self.guiRoot = Tk()
+        self.guiRoot.title('Client')
 
         # Create Setup button
-        self.setup = Button(self.master, width=20, padx=3, pady=3)
-        self.setup["text"] = "Setup"
-        self.setup["command"] = self.setupMovie
-        self.setup.grid(row=1, column=0, padx=2, pady=2)
-        
-        # Create Play button		
-        self.start = Button(self.master, width=20, padx=3, pady=3)
-        self.start["text"] = "Play"
-        self.start["command"] = self.playMovie
-        self.start.grid(row=1, column=1, padx=2, pady=2)
-        
-        # Create Pause button			
-        self.pause = Button(self.master, width=20, padx=3, pady=3)
-        self.pause["text"] = "Pause"
-        self.pause["command"] = self.pauseMovie
-        self.pause.grid(row=1, column=2, padx=2, pady=2)
-        
+        self.setupButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.setupButton["text"] = "Setup"
+        self.setupButton["command"] = self.setup
+        self.setupButton.grid(row=1, column=0, padx=2, pady=2)
+
+        # Create Play button
+        self.playButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.playButton["text"] = "Play"
+        self.playButton["command"] = self.play
+        self.playButton.grid(row=1, column=1, padx=2, pady=2)
+
+        # Create Pause button
+        self.pauseButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.pauseButton["text"] = "Pause"
+        self.pauseButton["command"] = self.pause
+        self.pauseButton.grid(row=1, column=2, padx=2, pady=2)
+
         # Create Teardown button
-        self.teardown = Button(self.master, width=20, padx=3, pady=3)
-        self.teardown["text"] = "Teardown"
-        self.teardown["command"] =  self.exitClient
-        self.teardown.grid(row=1, column=3, padx=2, pady=2)
-        
+        self.teardownButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.teardownButton["text"] = "Teardown"
+        self.teardownButton["command"] =  self.teardown
+        self.teardownButton.grid(row=1, column=3, padx=2, pady=2)
+
         # Create a label to display the movie
-        self.label = Label(self.master, height=19)
-        self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
+        self.label = Label(self.guiRoot, height=19)
+        self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5)
 
         # self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
 
-    def __del__(self):
+    def __del__(self) -> None:
         print("client destroyed")
-        
-    def setupMovie(self):
-        self.rtspProcessor.sendRequest(RtspProcessor.Method.SETUP)
 
-    def exitClient(self):
-        self.rtspProcessor.sendRequest(RtspProcessor.Method.TEARDOWN)
+    def _setup_(self) -> bool:
+        self.CSeq += 1
+        message = Rtsp.createRequest(Rtsp.Method.SETUP, self.CSeq, self.fileName, rtpPort=self.rtpPort)
+        log(message, "request")
+        self.rtspSocket.sendall(message.encode())
 
-    def pauseMovie(self):
-        self.rtspProcessor.sendRequest(RtspProcessor.Method.PAUSE)
-    
-    def playMovie(self):
-        self.rtspProcessor.sendRequest(RtspProcessor.Method.PLAY)
-    
-    def writeFrame(self, data):
-        """Write the received frame to a temp image file. Return the image file."""
-        #TODO
-    
-    def updateMovie(self, imageFile):
-        """Update the image file as video frame in the GUI."""
-        #TODO
+        message = self.rtspSocket.recv(1024).decode()
+        log(message, "respond")
+        respond = Rtsp.parseRespond(message)
+        if respond["statusCode"] > 299:
+            print(respond["statusCode"])
+            return False
 
-        
-    def run(self):
-        self.master.mainloop()
+        self.session = respond["session"]
+
+        return True
+
+
+    def run(self) -> None:
+        self.guiRoot.mainloop()
 
 if __name__ == "__main__":
     try:
-        serverAddr = sys.argv[1]
+        serverIp = sys.argv[1]
         rtspPort = int(sys.argv[2])
         rtpPort = int(sys.argv[3])
-        fileName = sys.argv[4]	
+        fileName = sys.argv[4]
     except:
-        print("Usage: python Client.py serverName rtspPort rtpPort fileName\n")	
-    
-    
+        print("Usage: python Client.py serverIP serverRtspPort clientRtpPort fileName\n")
+
+
     # Create a new client
-    app = Client(serverAddr, rtspPort, rtpPort, fileName)
+    app = Client(serverIp, rtspPort, rtpPort, fileName)
     app.run()
-    
