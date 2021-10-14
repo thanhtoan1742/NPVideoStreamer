@@ -9,7 +9,7 @@ class Server:
 		try:
 			SERVER_PORT = int(sys.argv[1])
 		except:
-			print("[Usage: Server.py Server_port]\n")
+			print("Usage: python Server.py rtspPor\n")
 		rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		rtspSocket.bind(('', SERVER_PORT))
 		rtspSocket.listen(5)        

@@ -105,7 +105,7 @@ if __name__ == "__main__":
         rtpPort = int(sys.argv[3])
         fileName = sys.argv[4]	
     except:
-        print("Usage: Client.py serverName rtspPort rtpPort fileName\n")	
+        print("Usage: python Client.py serverName rtspPort rtpPort fileName\n")	
     
     
     # Create a new client
