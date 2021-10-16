@@ -1,12 +1,15 @@
 from common import *
+from threading import Event, Thread
 
-class Player:
+class MediaPlayer:
+    """Player class manage state of a media player"""
     INIT = 0
     READY = 1
     PLAYING = 2
 
     def __init__(self) -> None:
         self.state = self.INIT
+        self.playingFlag = Event()
 
     def setup(self) -> bool:
         if self.state != self.INIT:
@@ -18,9 +21,6 @@ class Player:
         self.state = self.READY
         return True
 
-    def _setup_(self) -> bool:
-        raise NotImplementedError
-
     def play(self) -> bool:
         if self.state != self.READY:
             return False
@@ -29,10 +29,8 @@ class Player:
             return False
 
         self.state = self.PLAYING
+        self.stream()
         return True
-
-    def _play_(self) -> bool:
-        raise NotImplementedError
 
     def pause(self) -> bool:
         if self.state != self.PLAYING:
@@ -44,9 +42,6 @@ class Player:
         self.state = self.READY
         return True
 
-    def _pause_(self) -> bool:
-        raise NotImplementedError
-
     def teardown(self) -> bool:
         if self.state != self.READY and self.state != self.PLAYING:
             return False
@@ -57,6 +52,31 @@ class Player:
         self.state = self.INIT
         return True
 
+    def stream(self) -> None:
+        def target():
+            while True:
+                self.playingFlag.wait(0.05)
+                if not self.playingFlag.is_set():
+                    break
+
+                self._stream_()
+
+        Thread(target=target).start()
+
+
+
+    def _setup_(self) -> bool:
+        raise NotImplementedError
+
+    def _play_(self) -> bool:
+        raise NotImplementedError
+
+    def _pause_(self) -> bool:
+        raise NotImplementedError
+
     def _teardown_(self) -> bool:
+        raise NotImplementedError
+
+    def _stream_(self) -> None:
         raise NotImplementedError
 

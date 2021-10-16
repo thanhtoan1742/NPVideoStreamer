@@ -1,4 +1,4 @@
-class VideoStream:
+class VideoReader:
     def __init__(self, filename):
         self.filename = filename
         try:
