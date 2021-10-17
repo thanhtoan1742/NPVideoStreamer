@@ -65,7 +65,7 @@ class Client(MediaPlayer):
         # self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
 
     def __del__(self) -> None:
-        self.rtspSocket.close()
+        self.teardown()
         print("client destroyed")
 
     def sendRtspRequest(self, method: Rtsp.Method) -> bool:
@@ -109,9 +109,8 @@ class Client(MediaPlayer):
         self.rtpSocket.close()
         return True
 
-    def _stream_(self) -> None:
-        print("streaming")
-        print("done streaming")
+    def processFrame(self) -> None:
+        print("processed frame")
 
     def run(self) -> None:
         self.guiRoot.mainloop()

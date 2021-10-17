@@ -67,29 +67,24 @@ class ServerWorker(MediaPlayer):
         self.session = randint(100000, 999999)
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rtpPort = self.request["rtpPort"]
-        self.playingFlag.clear()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
     def _play_(self) -> bool:
-        self.playingFlag.set()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
     def _pause_(self) -> bool:
-        self.playingFlag.clear()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
     def _teardown_(self) -> bool:
-        self.playingFlag.clear()
         self.rtpSocket.close()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
-    def _stream_(self) -> None:
-        print("streaming")
-        print("done streaming")
+    def processFrame(self) -> None:
+        print("processed frame")
 
     def sendRtp(self) -> None:
         """Send RTP packets over UDP."""
