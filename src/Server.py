@@ -3,6 +3,7 @@ from tkinter.constants import W
 from RtpPacket import RtpPacket
 from threading import Thread
 
+from common import *
 from ServerWorker import ServerWorker
 
 class Server:
@@ -10,18 +11,22 @@ class Server:
         self.Ip = Ip
         self.rtspPort = rtspPort
 
+        self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.rtspSocket.bind((self.Ip, self.rtspPort))
+        self.rtspSocket.listen(5)
+
+    def __del__(self) -> None:
+        self.rtspSocket.close()
+
     def run(self):
-        rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        rtspSocket.bind((self.Ip, self.rtspPort))
-        rtspSocket.listen(5)
-
-
         # Receive client info (address,port) through RTSP/TCP session
+        workers = []
         while True:
-            clientInfo = {}
-            clientInfo['rtspSocket'] = rtspSocket.accept()
-            sw = ServerWorker(clientInfo)
-            Thread(target=sw.run).start()
+            clientSocket, (clientIp, clientPort) = self.rtspSocket.accept()
+
+            worker = ServerWorker(clientSocket, clientIp, clientPort)
+            workers.append(worker)
+            Thread(target=worker.run).start()
 
 
 if __name__ == "__main__":

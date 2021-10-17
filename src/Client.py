@@ -5,13 +5,10 @@ import socket, threading, sys, traceback, os
 
 from common import *
 from RtpPacket import RtpPacket
-from Player import Player
+from MediaPlayer import MediaPlayer
 import Rtsp
 
-CACHE_FILE_NAME = "cache-"
-CACHE_FILE_EXT = ".jpg"
-
-class Client(Player):
+class Client(MediaPlayer):
     def __init__(self, serverIp: str, rtspPort: int, rtpPort: int, fileName: str) -> None:
         super().__init__()
 
@@ -68,12 +65,13 @@ class Client(Player):
         # self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
 
     def __del__(self) -> None:
+        self.rtspSocket.close()
         print("client destroyed")
 
     def sendRtspRequest(self, method: Rtsp.Method) -> bool:
         self.CSeq += 1
         if method == Rtsp.Method.SETUP:
-            message = Rtsp.createRequest(Rtsp.Method.SETUP, self.CSeq, self.fileName, rtpPort=self.rtpPort)
+            message = Rtsp.createRequest(method, self.CSeq, self.fileName, rtpPort=self.rtpPort)
         else:
             message = Rtsp.createRequest(method, self.CSeq, self.fileName, session=self.session)
         log(message, "client send")
@@ -93,7 +91,10 @@ class Client(Player):
 
 
     def _setup_(self) -> bool:
-        return self.sendRtspRequest(Rtsp.Method.SETUP)
+        if not self.sendRtspRequest(Rtsp.Method.SETUP):
+            return False
+        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        return True
 
     def _play_(self) -> bool:
         return self.sendRtspRequest(Rtsp.Method.PLAY)
@@ -102,7 +103,15 @@ class Client(Player):
         return self.sendRtspRequest(Rtsp.Method.PAUSE)
 
     def _teardown_(self) -> bool:
-        return self.sendRtspRequest(Rtsp.Method.TEARDOWN)
+        if not self.sendRtspRequest(Rtsp.Method.TEARDOWN):
+            return False
+
+        self.rtpSocket.close()
+        return True
+
+    def _stream_(self) -> None:
+        print("streaming")
+        print("done streaming")
 
     def run(self) -> None:
         self.guiRoot.mainloop()
