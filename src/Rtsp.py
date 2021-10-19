@@ -50,11 +50,22 @@ def parseRequest(message: str) -> dict:
     return request
 
 
-def createRespond(statusCode: StatusCode, CSeq: int, session: int = -1) -> str:
+def createRespond(statusCode: StatusCode, CSeq: int, session: int = -1, serverPort = 0, clientPort = 0) -> str:
     message = f"RTSP/1.0 {statusCode} {StatusCode.DESCRIPTION[statusCode]}\n"
     message += f"CSeq: {CSeq}\n"
     if session != -1:
         message += f"Session: {session}\n"
+
+    if serverPort <= 0 and clientPort <= 0:
+        return message.strip()
+
+    message += f"Transport: RTP/UDP;"
+    if clientPort > 0:
+        message += f" clientPort={clientPort};"
+    if serverPort > 0:
+        message += f" serverPort={serverPort};"
+    message += "\n"
+
     return message.strip()
 
 
@@ -71,5 +82,15 @@ def parseRespond(message: str) -> dict:
     if len(lines) > 2:
         line = lines[2].split(":")
         respond["session"] = int(line[1])
+
+    if len(lines) > 3:
+        line = lines[3].split(";")
+        if len(line) > 1:
+            key, value = line[1].split("=")
+            respond[key.strip()] = int(value)
+        if len(line) > 2:
+            key, value = line[2].split("=")
+            respond[key.strip()] = int(value)
+
 
     return respond
