@@ -5,7 +5,7 @@ class Method:
     SETUP = "SETUP"
     PLAY = "PLAY"
     PAUSE = "PAUSE"
-    TEARDOWN = "TEARDOWN "
+    TEARDOWN = "TEARDOWN"
 
 class StatusCode:
     OK = 200
