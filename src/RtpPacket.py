@@ -41,7 +41,7 @@ class RtpPacket:
         # Set sequence number (frame number)
         header[2] = (seqnum >> 8) & 0xFF
         header[3] = seqnum & 0xFF
-        print(hex(header[3]))
+        # print(hex(header[3]))
 
         # Set timestamp byte 4 - 7
         header[4] = (timestamp >> 24) & 0xFF

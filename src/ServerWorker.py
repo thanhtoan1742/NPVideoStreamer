@@ -18,7 +18,8 @@ class ServerWorker(MediaPlayer):
         self.session = 0
 
         self.videoStream = None
-        self.rtpPort = 0
+        self.clientRtpPort = 0
+        self.serverRtpPort = 0
         self.rtpSocket = None
         # self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -32,7 +33,11 @@ class ServerWorker(MediaPlayer):
     def sendRtspRespond(self, statusCode: Rtsp.StatusCode) -> None:
         """Send RTSP reply to the client."""
         if statusCode == Rtsp.StatusCode.OK:
-            message = Rtsp.createRespond(statusCode, self.request["CSeq"], self.session)
+            message = Rtsp.createRespond(statusCode, self.request["CSeq"],
+                self.session,
+                self.serverRtpPort,
+                self.clientRtpPort
+            )
         else:
             message = Rtsp.createRespond(statusCode, self.request["CSeq"])
         self.rtspSocket.send(message.encode())
@@ -42,6 +47,7 @@ class ServerWorker(MediaPlayer):
         """Process RTSP request sent from the client."""
         log(message, "server received")
         self.request = Rtsp.parseRequest(message)
+        log("message parsed")
 
         if self.request["method"] == Rtsp.Method.SETUP:
             self.setup()
@@ -52,7 +58,9 @@ class ServerWorker(MediaPlayer):
         if self.request["method"] == Rtsp.Method.PAUSE:
             self.pause()
 
+        log("hey hey")
         if self.request["method"] == Rtsp.Method.TEARDOWN:
+            log("going in teardown")
             self.teardown()
 
 
@@ -66,7 +74,9 @@ class ServerWorker(MediaPlayer):
 
         self.session = randint(100000, 999999)
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rtpPort = self.request["rtpPort"]
+        self.rtpSocket.bind(("", 0)) # let os pick port
+        self.serverRtpPort  = int(self.rtpSocket.getsockname()[1]) # get the port
+        self.clientRtpPort = self.request["rtpPort"]
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
@@ -79,6 +89,7 @@ class ServerWorker(MediaPlayer):
         return True
 
     def _teardown_(self) -> bool:
+        log("tearing down")
         self.rtpSocket.close()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
@@ -100,7 +111,7 @@ class ServerWorker(MediaPlayer):
                 frameNumber = self.videoStream.frameNbr()
                 try:
                     address = self.clientIp
-                    port = self.rtpPort
+                    port = self.clientRtpPort
                     self.rtpSocket.sendto(self.makeRtp(data, frameNumber),(address,port))
                 except:
                     print("Connection Error")

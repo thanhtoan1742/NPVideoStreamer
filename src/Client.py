@@ -9,13 +9,14 @@ from MediaPlayer import MediaPlayer
 import Rtsp
 
 class Client(MediaPlayer):
-    def __init__(self, serverIp: str, rtspPort: int, rtpPort: int, fileName: str) -> None:
+    def __init__(self, serverIp: str, rtspPort: int, fileName: str) -> None:
         super().__init__()
 
         self.serverIp = serverIp
         self.rtspPort = rtspPort
-        self.rtpPort = rtpPort
         self.fileName = fileName
+
+        self.rtpPort = 0
 
         self.initRtsp()
         self.initGUI()
@@ -91,9 +92,11 @@ class Client(MediaPlayer):
 
 
     def _setup_(self) -> bool:
+        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.rtpSocket.bind(("", 0)) # let os pick rtp port
+        self.rtpPort = int(self.rtpSocket.getsockname()[1]) # get rtp port
         if not self.sendRtspRequest(Rtsp.Method.SETUP):
             return False
-        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         return True
 
     def _play_(self) -> bool:
@@ -105,7 +108,6 @@ class Client(MediaPlayer):
     def _teardown_(self) -> bool:
         if not self.sendRtspRequest(Rtsp.Method.TEARDOWN):
             return False
-
         self.rtpSocket.close()
         return True
 
@@ -119,12 +121,11 @@ if __name__ == "__main__":
     try:
         serverIp = sys.argv[1]
         rtspPort = int(sys.argv[2])
-        rtpPort = int(sys.argv[3])
-        fileName = sys.argv[4]
+        fileName = sys.argv[3]
     except:
-        print("Usage: python Client.py serverIP serverRtspPort clientRtpPort fileName\n")
+        print("Usage: python Client.py serverIP serverRtspPort fileName\n")
 
 
     # Create a new client
-    app = Client(serverIp, rtspPort, rtpPort, fileName)
+    app = Client(serverIp, rtspPort, fileName)
     app.run()
