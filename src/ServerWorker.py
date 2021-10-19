@@ -41,13 +41,10 @@ class ServerWorker(MediaPlayer):
         else:
             message = Rtsp.createRespond(statusCode, self.request["CSeq"])
         self.rtspSocket.send(message.encode())
-        log(message, "server sent")
 
     def processRtspRequest(self, message: str) -> None:
         """Process RTSP request sent from the client."""
-        log(message, "server received")
         self.request = Rtsp.parseRequest(message)
-        log("message parsed")
 
         if self.request["method"] == Rtsp.Method.SETUP:
             self.setup()
@@ -58,9 +55,7 @@ class ServerWorker(MediaPlayer):
         if self.request["method"] == Rtsp.Method.PAUSE:
             self.pause()
 
-        log("hey hey")
         if self.request["method"] == Rtsp.Method.TEARDOWN:
-            log("going in teardown")
             self.teardown()
 
 
@@ -89,7 +84,6 @@ class ServerWorker(MediaPlayer):
         return True
 
     def _teardown_(self) -> bool:
-        log("tearing down")
         self.rtpSocket.close()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True

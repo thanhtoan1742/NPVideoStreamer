@@ -1,6 +1,4 @@
 import sys, socket
-from tkinter.constants import W
-from RtpPacket import RtpPacket
 from threading import Thread
 
 from common import *

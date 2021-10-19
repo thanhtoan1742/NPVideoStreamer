@@ -1,10 +1,8 @@
-from tkinter import *
-import tkinter.messagebox
-from PIL import Image, ImageTk
-import socket, threading, sys, traceback, os
+import tkinter as tk
+# from PIL import Image, ImageTk
+import socket, sys
 
 from common import *
-from RtpPacket import RtpPacket
 from MediaPlayer import MediaPlayer
 import Rtsp
 
@@ -32,42 +30,41 @@ class Client(MediaPlayer):
 
     def initGUI(self) -> None:
         """Build GUI."""
-        self.guiRoot = Tk()
+        self.guiRoot = tk.Tk()
         self.guiRoot.title('Client')
 
         # Create Setup button
-        self.setupButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.setupButton = tk.Button(self.guiRoot, width=20, padx=3, pady=3)
         self.setupButton["text"] = "Setup"
         self.setupButton["command"] = self.setup
         self.setupButton.grid(row=1, column=0, padx=2, pady=2)
 
         # Create Play button
-        self.playButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.playButton = tk.Button(self.guiRoot, width=20, padx=3, pady=3)
         self.playButton["text"] = "Play"
         self.playButton["command"] = self.play
         self.playButton.grid(row=1, column=1, padx=2, pady=2)
 
         # Create Pause button
-        self.pauseButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.pauseButton = tk.Button(self.guiRoot, width=20, padx=3, pady=3)
         self.pauseButton["text"] = "Pause"
         self.pauseButton["command"] = self.pause
         self.pauseButton.grid(row=1, column=2, padx=2, pady=2)
 
         # Create Teardown button
-        self.teardownButton = Button(self.guiRoot, width=20, padx=3, pady=3)
+        self.teardownButton = tk.Button(self.guiRoot, width=20, padx=3, pady=3)
         self.teardownButton["text"] = "Teardown"
         self.teardownButton["command"] =  self.teardown
         self.teardownButton.grid(row=1, column=3, padx=2, pady=2)
 
         # Create a label to display the movie
-        self.label = Label(self.guiRoot, height=19)
-        self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5)
+        self.label = tk.Label(self.guiRoot, height=19)
+        self.label.grid(row=0, column=0, columnspan=4, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
 
         # self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
 
     def __del__(self) -> None:
         self.teardown()
-        print("client destroyed")
 
     def sendRtspRequest(self, method: Rtsp.Method) -> bool:
         self.CSeq += 1
@@ -75,14 +72,12 @@ class Client(MediaPlayer):
             message = Rtsp.createRequest(method, self.CSeq, self.fileName, rtpPort=self.rtpPort)
         else:
             message = Rtsp.createRequest(method, self.CSeq, self.fileName, session=self.session)
-        log(message, "client send")
         self.rtspSocket.sendall(message.encode())
 
         message = self.rtspSocket.recv(1024).decode()
-        log(message, "client receive")
         respond = Rtsp.parseRespond(message)
         if respond["statusCode"] > 299:
-            print(respond["statusCode"])
+            log(respond["statusCode"], "server responded")
             return False
 
         if method == Rtsp.Method.SETUP:
