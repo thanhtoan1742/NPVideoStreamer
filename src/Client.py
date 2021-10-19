@@ -7,14 +7,15 @@ from MediaPlayer import MediaPlayer
 import Rtsp
 
 class Client(MediaPlayer):
-    def __init__(self, serverIp: str, rtspPort: int, fileName: str) -> None:
+    def __init__(self, serverIp: str, serverRtspPort: int, fileName: str) -> None:
         super().__init__()
 
         self.serverIp = serverIp
-        self.rtspPort = rtspPort
+        self.serverRtspPort = serverRtspPort
         self.fileName = fileName
 
-        self.rtpPort = 0
+        self.serverRtpPort = 0
+        self.clientRtpPort = 0
 
         self.initRtsp()
         self.initGUI()
@@ -26,7 +27,7 @@ class Client(MediaPlayer):
         self.session = -1
 
         self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.rtspSocket.connect((self.serverIp, self.rtspPort))
+        self.rtspSocket.connect((self.serverIp, self.serverRtspPort))
 
     def initGUI(self) -> None:
         """Build GUI."""
@@ -68,20 +69,24 @@ class Client(MediaPlayer):
 
     def sendRtspRequest(self, method: Rtsp.Method) -> bool:
         self.CSeq += 1
+
+        request = {
+            "method": method,
+            "fileName": self.fileName,
+            "CSeq": self.CSeq,
+        }
         if method == Rtsp.Method.SETUP:
-            message = Rtsp.createRequest(method, self.CSeq, self.fileName, rtpPort=self.rtpPort)
+            request["clientPort"] = self.clientRtpPort
         else:
-            message = Rtsp.createRequest(method, self.CSeq, self.fileName, session=self.session)
+            request["session"] = self.session
+        message = Rtsp.createRequest(request)
         self.rtspSocket.sendall(message.encode())
 
         message = self.rtspSocket.recv(1024).decode()
-        respond = Rtsp.parseRespond(message)
-        if respond["statusCode"] > 299:
-            log(respond["statusCode"], "server responded")
+        self.respond = Rtsp.parseRespond(message)
+        if self.respond["statusCode"] > 299:
+            log(self.respond["statusCode"], "server responded")
             return False
-
-        if method == Rtsp.Method.SETUP:
-            self.session = respond["session"]
 
         return True
 
@@ -89,9 +94,13 @@ class Client(MediaPlayer):
     def _setup_(self) -> bool:
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rtpSocket.bind(("", 0)) # let os pick rtp port
-        self.rtpPort = int(self.rtpSocket.getsockname()[1]) # get rtp port
+        self.clientRtpPort = int(self.rtpSocket.getsockname()[1]) # get rtp port
+
         if not self.sendRtspRequest(Rtsp.Method.SETUP):
             return False
+
+        self.session = self.respond["session"]
+        self.serverRtpPort = self.respond["serverPort"]
         return True
 
     def _play_(self) -> bool:
@@ -108,6 +117,7 @@ class Client(MediaPlayer):
 
     def processFrame(self) -> None:
         print("processed frame")
+        # self.rtpSocket.recvfrom()
 
     def run(self) -> None:
         self.guiRoot.mainloop()

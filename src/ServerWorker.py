@@ -20,26 +20,26 @@ class ServerWorker(MediaPlayer):
         self.videoStream = None
         self.clientRtpPort = 0
         self.serverRtpPort = 0
+
         self.rtpSocket = None
-        # self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         self.request = None
 
     def __del__(self) -> None:
-        if self.rtpSocket != None:
-            self.rtpSocket.close()
+        self.teardown()
         self.rtspSocket.close()
 
     def sendRtspRespond(self, statusCode: Rtsp.StatusCode) -> None:
         """Send RTSP reply to the client."""
+        respond = {
+            "statusCode": statusCode,
+            "CSeq": self.request["CSeq"]
+        }
         if statusCode == Rtsp.StatusCode.OK:
-            message = Rtsp.createRespond(statusCode, self.request["CSeq"],
-                self.session,
-                self.serverRtpPort,
-                self.clientRtpPort
-            )
-        else:
-            message = Rtsp.createRespond(statusCode, self.request["CSeq"])
+            respond["session"] = self.session
+            respond["clientPort"] = self.clientRtpPort
+            respond["serverPort"] = self.serverRtpPort
+        message = Rtsp.createRespond(respond)
         self.rtspSocket.send(message.encode())
 
     def processRtspRequest(self, message: str) -> None:
@@ -71,7 +71,8 @@ class ServerWorker(MediaPlayer):
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rtpSocket.bind(("", 0)) # let os pick port
         self.serverRtpPort  = int(self.rtpSocket.getsockname()[1]) # get the port
-        self.clientRtpPort = self.request["rtpPort"]
+        self.clientRtpPort = self.request["clientPort"]
+
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
