@@ -20,6 +20,9 @@ class Client(MediaPlayer):
         self.initRtsp()
         self.initGUI()
 
+        # DEBUG
+        self.cnt = 0
+
     def initRtsp(self) -> None:
         """Connect to the Server. Start a new RTSP/TCP session."""
 
@@ -82,7 +85,7 @@ class Client(MediaPlayer):
         message = Rtsp.createRequest(request)
         self.rtspSocket.sendall(message.encode())
 
-        message = self.rtspSocket.recv(1024).decode()
+        message = self.rtspSocket.recv(RTSP_BUFFER_SIZE).decode()
         self.respond = Rtsp.parseRespond(message)
         if self.respond["statusCode"] > 299:
             log(self.respond["statusCode"], "server responded")
@@ -116,12 +119,14 @@ class Client(MediaPlayer):
 
 
     def processFrame(self) -> None:
-        data, host = self.rtpSocket.recvfrom(1024)
-        log(data)
+        data, host = self.rtpSocket.recvfrom(RTP_BUFFER_SIZE)
+        self.cnt += 1
+        log(data, self.cnt)
 
 
     def run(self) -> None:
         self.guiRoot.mainloop()
+
 
 if __name__ == "__main__":
     try:
@@ -130,7 +135,6 @@ if __name__ == "__main__":
         fileName = sys.argv[3]
     except:
         print("Usage: python Client.py serverIP serverRtspPort fileName\n")
-
 
     # Create a new client
     app = Client(serverIp, rtspPort, fileName)

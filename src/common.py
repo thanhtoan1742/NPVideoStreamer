@@ -1,3 +1,8 @@
+from sys import getsizeof as sizeof
+
+RTSP_BUFFER_SIZE = 1 << 10
+RTP_BUFFER_SIZE = 1 << 10
+
 def log(message: str, header: str = "") -> None:
     print("-"*60)
     if header != "":

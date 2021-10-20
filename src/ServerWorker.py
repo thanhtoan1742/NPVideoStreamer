@@ -1,11 +1,11 @@
 from random import randint
-import threading, socket
+import socket
+from cv2 import VideoCapture
 
 from common import *
 from MediaPlayer import MediaPlayer
 import Rtsp
 from RtpPacket import RtpPacket
-from VideoReader import VideoReader
 
 class ServerWorker(MediaPlayer):
     def __init__(self, rtspSocket: socket.socket, clientIp: str, clientRtspPort: int) -> None:
@@ -17,7 +17,7 @@ class ServerWorker(MediaPlayer):
 
         self.session = 0
 
-        self.videoStream = None
+        self.videoReader: VideoCapture = None
         self.clientRtpPort = 0
 
         self.rtpSocket = None
@@ -59,7 +59,7 @@ class ServerWorker(MediaPlayer):
 
     def _setup_(self) -> bool:
         try:
-            self.videoStream = VideoReader(self.request["fileName"])
+            self.videoReader = VideoCapture(self.request["fileName"])
             self.state = self.READY
         except IOError:
             self.sendRtspRespond(Rtsp.StatusCode.FILE_NOT_FOUND)
@@ -82,34 +82,20 @@ class ServerWorker(MediaPlayer):
 
     def _teardown_(self) -> bool:
         self.rtpSocket.close()
+        self.videoReader.release()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
     def processFrame(self) -> None:
+        ok, frame = self.videoReader.read()
         client = (self.clientIp, self.clientRtpPort)
-        self.rtpSocket.sendto(b"data", client)
 
-    def sendRtp(self) -> None:
-        """Send RTP packets over UDP."""
-        while True:
-            self.playingFlag.wait(0.05)
-
-            # Stop sending if request is PAUSE or TEARDOWN
-            if self.playingFlag.is_set():
-                break
-
-            data = self.videoStream.nextFrame()
-            if data:
-                frameNumber = self.videoStream.frameNbr()
-                try:
-                    address = self.clientIp
-                    port = self.clientRtpPort
-                    self.rtpSocket.sendto(self.makeRtp(data, frameNumber),(address,port))
-                except:
-                    print("Connection Error")
-                    #print('-'*60)
-                    #traceback.print_exc(file=sys.stdout)
-                    #print('-'*60)
+        data = frame.tobytes()
+        sz = RTP_BUFFER_SIZE
+        for i in range(0, len(data), sz):
+            j = min(i + sz, len(data))
+            data[i:j]
+            self.rtpSocket.sendto(data[i:j], client)
 
     def makeRtp(self, payload, frameNbr):
         """RTP-packetize the video data."""
@@ -130,7 +116,7 @@ class ServerWorker(MediaPlayer):
 
     def run(self) -> None:
         while True:
-            message = self.rtspSocket.recv(1024)
+            message = self.rtspSocket.recv(RTSP_BUFFER_SIZE)
             if not message:
                 break
             self.processRtspRequest(message.decode())
