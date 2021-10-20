@@ -5,7 +5,7 @@ pip install -r requirements.txt
 
 To launch server, run:
 ```sh
-python Client.py rtspPort
+python Server.py rtspPort
 ```
 
 To launch server, run:
