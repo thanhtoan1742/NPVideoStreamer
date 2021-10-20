@@ -19,7 +19,6 @@ class ServerWorker(MediaPlayer):
 
         self.videoStream = None
         self.clientRtpPort = 0
-        self.serverRtpPort = 0
 
         self.rtpSocket = None
 
@@ -29,7 +28,7 @@ class ServerWorker(MediaPlayer):
         self.teardown()
         self.rtspSocket.close()
 
-    def sendRtspRespond(self, statusCode: Rtsp.StatusCode) -> None:
+    def sendRtspRespond(self, statusCode: Rtsp.StatusCode, isSetup: bool = False) -> None:
         """Send RTSP reply to the client."""
         respond = {
             "statusCode": statusCode,
@@ -37,9 +36,8 @@ class ServerWorker(MediaPlayer):
         }
         if statusCode == Rtsp.StatusCode.OK:
             respond["session"] = self.session
-            respond["clientPort"] = self.clientRtpPort
-            respond["serverPort"] = self.serverRtpPort
         message = Rtsp.createRespond(respond)
+
         self.rtspSocket.send(message.encode())
 
     def processRtspRequest(self, message: str) -> None:
@@ -69,11 +67,9 @@ class ServerWorker(MediaPlayer):
 
         self.session = randint(100000, 999999)
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rtpSocket.bind(("", 0)) # let os pick port
-        self.serverRtpPort  = int(self.rtpSocket.getsockname()[1]) # get the port
         self.clientRtpPort = self.request["clientPort"]
 
-        self.sendRtspRespond(Rtsp.StatusCode.OK)
+        self.sendRtspRespond(Rtsp.StatusCode.OK, isSetup=True)
         return True
 
     def _play_(self) -> bool:
@@ -90,7 +86,8 @@ class ServerWorker(MediaPlayer):
         return True
 
     def processFrame(self) -> None:
-        print("processed frame")
+        client = (self.clientIp, self.clientRtpPort)
+        self.rtpSocket.sendto(b"data", client)
 
     def sendRtp(self) -> None:
         """Send RTP packets over UDP."""

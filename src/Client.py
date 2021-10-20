@@ -14,8 +14,8 @@ class Client(MediaPlayer):
         self.serverRtspPort = serverRtspPort
         self.fileName = fileName
 
-        self.serverRtpPort = 0
         self.clientRtpPort = 0
+        self.rtpSocket = None
 
         self.initRtsp()
         self.initGUI()
@@ -93,14 +93,13 @@ class Client(MediaPlayer):
 
     def _setup_(self) -> bool:
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rtpSocket.bind(("", 0)) # let os pick rtp port
-        self.clientRtpPort = int(self.rtpSocket.getsockname()[1]) # get rtp port
+        self.rtpSocket.bind(("", 0)) # let os pick port
+        self.clientRtpPort  = int(self.rtpSocket.getsockname()[1]) # get the port
 
         if not self.sendRtspRequest(Rtsp.Method.SETUP):
             return False
 
         self.session = self.respond["session"]
-        self.serverRtpPort = self.respond["serverPort"]
         return True
 
     def _play_(self) -> bool:
@@ -115,9 +114,11 @@ class Client(MediaPlayer):
         self.rtpSocket.close()
         return True
 
+
     def processFrame(self) -> None:
-        print("processed frame")
-        # self.rtpSocket.recvfrom()
+        data, host = self.rtpSocket.recvfrom(1024)
+        log(data)
+
 
     def run(self) -> None:
         self.guiRoot.mainloop()
