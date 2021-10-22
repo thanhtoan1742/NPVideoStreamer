@@ -85,7 +85,7 @@ class Client(MediaPlayer):
         message = Rtsp.createRequest(request)
         self.rtspSocket.sendall(message.encode())
 
-        message = self.rtspSocket.recv(RTSP_BUFFER_SIZE).decode()
+        message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE).decode()
         self.respond = Rtsp.parseRespond(message)
         if self.respond["statusCode"] > 299:
             log(self.respond["statusCode"], "server responded")
@@ -119,7 +119,7 @@ class Client(MediaPlayer):
 
 
     def processFrame(self) -> None:
-        data, host = self.rtpSocket.recvfrom(RTP_BUFFER_SIZE)
+        data, host = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
         self.cnt += 1
         log(data, self.cnt)
 
