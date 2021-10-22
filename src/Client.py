@@ -121,7 +121,6 @@ class Client(MediaPlayer):
     def processFrame(self) -> None:
         data, host = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
         self.cnt += 1
-        log(data, self.cnt)
 
 
     def run(self) -> None:

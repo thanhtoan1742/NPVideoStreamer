@@ -4,8 +4,7 @@ from cv2 import VideoCapture
 
 from common import *
 from MediaPlayer import MediaPlayer
-import Rtsp
-from RtpPacket import RtpPacket
+import Rtsp, Rtp
 
 class ServerWorker(MediaPlayer):
     def __init__(self, rtspSocket: socket.socket, clientIp: str, clientRtspPort: int) -> None:
@@ -88,35 +87,34 @@ class ServerWorker(MediaPlayer):
 
     def processFrame(self) -> None:
         ok, frame = self.videoReader.read()
+        if not ok:
+            return
+
         client = (self.clientIp, self.clientRtpPort)
+        frame = frame.tobytes()
+        data = {
+            "version": 2,
+            # "padding": 0, # does not support other than 0
+            "extension": 0,
+            # "csrcCount": 0, # does not support other than 0
+            "marker": 0,
+            "payloadType": 26, # MJPEG type
+            "sequenceNumber": 0,
+            "timestamp": 0,
+            "ssrc": 123,
+            # "csrcList": [], # does not support other than empty list
+        }
 
-        data = frame.tobytes()
-        sz = RTP_BUFFER_SIZE
-        for i in range(0, len(data), sz):
-            j = min(i + sz, len(data))
-            data[i:j]
-            self.rtpSocket.sendto(data[i:j], client)
 
-    def makeRtp(self, payload, frameNbr):
-        """RTP-packetize the video data."""
-        version = 2
-        padding = 0
-        extension = 0
-        cc = 0
-        marker = 0
-        pt = 26 # MJPEG type
-        seqnum = frameNbr
-        ssrc = 0
-
-        rtpPacket = RtpPacket()
-
-        rtpPacket.encode(version, padding, extension, cc, seqnum, marker, pt, ssrc, payload)
-
-        return rtpPacket.getPacket()
+        sz = Rtp.PAYLOAD_SIZE
+        for i in range(0, len(frame), sz):
+            j = min(i + sz, len(frame))
+            data["payload"] = frame[i:j]
+            self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
 
     def run(self) -> None:
         while True:
-            message = self.rtspSocket.recv(RTSP_BUFFER_SIZE)
+            message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE)
             if not message:
                 break
             self.processRtspRequest(message.decode())
