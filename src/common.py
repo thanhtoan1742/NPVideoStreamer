@@ -1,6 +1,6 @@
 from sys import getsizeof as sizeof
 
-SOCKET_BUFFER_SIZE = 1 << 10
+SOCKET_BUFFER_SIZE = 65500
 
 def log(message: str, header: str = "") -> None:
     print("-"*60)

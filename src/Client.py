@@ -1,10 +1,15 @@
 import tkinter as tk
 # from PIL import Image, ImageTk
 import socket, sys
+import cv2
+import numpy as np
+import pickle
 
 from common import *
 from MediaPlayer import MediaPlayer
-import Rtsp
+from VideoAssembler import RtpVideoAssembler
+import Rtsp, Rtp
+
 
 class Client(MediaPlayer):
     def __init__(self, serverIp: str, serverRtspPort: int, fileName: str) -> None:
@@ -17,11 +22,11 @@ class Client(MediaPlayer):
         self.clientRtpPort = 0
         self.rtpSocket = None
 
+        # self.videoAssembler = RtpVideoAssembler()
+
         self.initRtsp()
         self.initGUI()
 
-        # DEBUG
-        self.cnt = 0
 
     def initRtsp(self) -> None:
         """Connect to the Server. Start a new RTSP/TCP session."""
@@ -120,7 +125,20 @@ class Client(MediaPlayer):
 
     def processFrame(self) -> None:
         data, host = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
-        self.cnt += 1
+        data = Rtp.decode(data)
+        print(len(data["payload"]), data["sequenceNumber"])
+
+        frame = pickle.loads(data["payload"])
+        print(frame.shape)
+        cv2.imshow("movie", frame)
+        return
+
+        self.videoAssembler.add(Rtp.decode(data))
+        ok, frame = self.videoAssembler.nextFrame()
+        if ok:
+            # show frame
+            # cv2.imshow(frame)
+            pass
 
 
     def run(self) -> None:
