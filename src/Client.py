@@ -6,7 +6,6 @@ import time
 
 from common import *
 from MediaPlayer import MediaPlayer
-from VideoAssembler import RtpVideoAssembler
 import Rtsp, Rtp
 
 
@@ -19,9 +18,7 @@ class Client(MediaPlayer):
         self.fileName = fileName
 
         self.clientRtpPort = 0
-        self.rtpSocket = None
-
-        # self.videoAssembler = RtpVideoAssembler()
+        self.rtpSocket: socket.socket = None
 
         self.initRtsp()
         self.initGUI()
@@ -69,10 +66,15 @@ class Client(MediaPlayer):
         self.label = tk.Label(self.guiRoot)
         self.label.grid(row=0, column=0, columnspan=4, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
 
-        # self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
+        self.guiRoot.protocol("WM_DELETE_WINDOW", self.destroyGui)
 
     def __del__(self) -> None:
         self.teardown()
+        self.rtspSocket.close()
+
+    def destroyGui(self) -> None:
+        self.teardown()
+        self.guiRoot.destroy()
 
     def sendRtspRequest(self, method: Rtsp.Method) -> bool:
         self.CSeq += 1
@@ -100,10 +102,12 @@ class Client(MediaPlayer):
 
     def _setup_(self) -> bool:
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.rtpSocket.settimeout(1)
         self.rtpSocket.bind(("", 0)) # let os pick port
         self.clientRtpPort  = int(self.rtpSocket.getsockname()[1]) # get the port
 
         if not self.sendRtspRequest(Rtsp.Method.SETUP):
+            self.rtpSocket.close()
             return False
 
         self.session = self.respond["session"]
@@ -123,13 +127,21 @@ class Client(MediaPlayer):
 
 
     def processFrame(self) -> None:
-        data, host = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
+        try:
+            data, _ = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
+        except:
+            print("timed out")
+            return
+        print("received data")
+
+        if not data:
+            return
+
         data = Rtp.decode(data)
 
         frame = pickle.loads(data["payload"])
         self.frameTk = ImageTk.PhotoImage(image=frame)
         self.label.configure(image=self.frameTk)
-        time.sleep(1/30)
 
 
     def run(self) -> None:

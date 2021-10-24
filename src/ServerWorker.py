@@ -31,8 +31,7 @@ class ServerWorker(MediaPlayer):
         self.request = None
 
     def __del__(self) -> None:
-        self.teardown()
-        self.rtspSocket.close()
+        pass
 
     def sendRtspRespond(self, statusCode: Rtsp.StatusCode, isSetup: bool = False) -> None:
         """Send RTSP reply to the client."""
@@ -123,3 +122,7 @@ class ServerWorker(MediaPlayer):
             if not message:
                 break
             self.processRtspRequest(message.decode())
+
+        self.teardown()
+        self.rtspSocket.close()
+
