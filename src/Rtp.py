@@ -12,8 +12,8 @@ def decode(data: bytearray) -> dict:
     p.payload = data[HEADER_SIZE >> 3:]
     return {
         "version": p.version(),
-        "padding": p.padding(),
-        "extension": p.extension(),
+        # "padding": p.padding(),
+        # "extension": p.extension(),
         # "csrcCount": p.csrcCount(),
         "marker": p.marker(),
         "payloadType": p.payloadType(),
@@ -31,12 +31,13 @@ class Packet:
         try:
             self.header[0] = (data["version"] << 6) & 0xFF
 
-            # currently do not support padding, default to 0
+            # currently do not support padding, defaults to 0
             # self.header |= (data["padding"] << 5) & 0xFF
 
-            self.header[0] |= (data["extension"] << 4) & 0xFF
+            # currently do not support extension, defaults to 0
+            # self.header[0] |= (data["extension"] << 4) & 0xFF
 
-            # currently do not support csrcCount, default to 0
+            # currently do not support csrcCount, defaults to 0
             # self.header |= data["csrcCount"]
 
             self.header[1] = (data["marker"] << 7) & 0xFF
@@ -63,7 +64,14 @@ class Packet:
             self.payload = bytearray(PAYLOAD_SIZE >> 3)
 
     def __str__(self) -> str:
-        return f"version: {self.version()}\n" \
+        return f"marker: {self.marker()}\n" \
+            f"sequenceNumber: {self.sequenceNumber()}\n" \
+            f"timestamp: {self.timestamp()}\n" \
+            # f"payload: {self.payload}\n" \
+
+
+    def printAllAttribute(self) -> None:
+        s = f"version: {self.version()}\n" \
             f"padding: {self.padding()}\n" \
             f"extension: {self.extension()}\n" \
             f"marker: {self.marker()}\n" \
@@ -72,7 +80,7 @@ class Packet:
             f"timestamp: {self.timestamp()}\n" \
             f"ssrc: {self.ssrc()}\n" \
             f"payload: {self.payload}\n"
-
+        print(s)
 
 
     def encode(self) -> bytearray:
