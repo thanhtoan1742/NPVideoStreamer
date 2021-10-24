@@ -1,9 +1,10 @@
 import tkinter as tk
-# from PIL import Image, ImageTk
+from PIL import ImageTk
 import socket, sys
-import cv2
-import numpy as np
 import pickle
+import time
+
+from numpy.lib.type_check import imag
 
 from common import *
 from MediaPlayer import MediaPlayer
@@ -67,7 +68,7 @@ class Client(MediaPlayer):
         self.teardownButton.grid(row=1, column=3, padx=2, pady=2)
 
         # Create a label to display the movie
-        self.label = tk.Label(self.guiRoot, height=19)
+        self.label = tk.Label(self.guiRoot)
         self.label.grid(row=0, column=0, columnspan=4, sticky=tk.W+tk.E+tk.N+tk.S, padx=5, pady=5)
 
         # self.master.protocol("WM_DELETE_WINDOW", self.GUICloseHandler)
@@ -126,19 +127,11 @@ class Client(MediaPlayer):
     def processFrame(self) -> None:
         data, host = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
         data = Rtp.decode(data)
-        print(len(data["payload"]), data["sequenceNumber"])
 
         frame = pickle.loads(data["payload"])
-        print(frame.shape)
-        cv2.imshow("movie", frame)
-        return
-
-        self.videoAssembler.add(Rtp.decode(data))
-        ok, frame = self.videoAssembler.nextFrame()
-        if ok:
-            # show frame
-            # cv2.imshow(frame)
-            pass
+        self.frameTk = ImageTk.PhotoImage(image=frame)
+        self.label.configure(image=self.frameTk)
+        time.sleep(1/30)
 
 
     def run(self) -> None:

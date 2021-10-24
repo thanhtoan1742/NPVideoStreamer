@@ -1,10 +1,15 @@
 from random import randint
+from math import sqrt, floor
 import socket
-from cv2 import VideoCapture
+import numpy as np
+import pickle
 
 from common import *
 from MediaPlayer import MediaPlayer
+from AtomicCounter import AtomicCounter
+from VideoReader import VideoReader, fitPayload
 import Rtsp, Rtp
+
 
 class ServerWorker(MediaPlayer):
     def __init__(self, rtspSocket: socket.socket, clientIp: str, clientRtspPort: int) -> None:
@@ -16,10 +21,12 @@ class ServerWorker(MediaPlayer):
 
         self.session = 0
 
-        self.videoReader: VideoCapture = None
-        self.clientRtpPort = 0
+        self.videoReader: VideoReader = None
+        self.frameCounter = AtomicCounter()
 
+        self.clientRtpPort = 0
         self.rtpSocket = None
+        self.rtpSequenceNumber = AtomicCounter()
 
         self.request = None
 
@@ -58,7 +65,7 @@ class ServerWorker(MediaPlayer):
 
     def _setup_(self) -> bool:
         try:
-            self.videoReader = VideoCapture(self.request["fileName"])
+            self.videoReader = VideoReader(self.request["fileName"])
             self.state = self.READY
         except IOError:
             self.sendRtspRespond(Rtsp.StatusCode.FILE_NOT_FOUND)
@@ -81,36 +88,34 @@ class ServerWorker(MediaPlayer):
 
     def _teardown_(self) -> bool:
         self.rtpSocket.close()
-        self.videoReader.release()
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
+
     def processFrame(self) -> None:
-        ok, frame = self.videoReader.read()
+        ok, frame = self.videoReader.nextFrame()
         if not ok:
             return
 
         client = (self.clientIp, self.clientRtpPort)
-        frame = frame.tobytes()
         data = {
             "version": 2,
-            # "padding": 0, # does not support other than 0
-            "extension": 0,
+            # "padding": 0, # does not support padding, defaults to 0
+            # "extension": 0, # does not support extension, defaults to 0
             # "csrcCount": 0, # does not support other than 0
             "marker": 0,
             "payloadType": 26, # MJPEG type
-            "sequenceNumber": 0,
-            "timestamp": 0,
+            "timestamp": self.frameCounter.getThenIncrement(),
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
+
+            "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
+            "payload": pickle.dumps(fitPayload(frame))
         }
 
+        self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
 
-        sz = Rtp.PAYLOAD_SIZE
-        for i in range(0, len(frame), sz):
-            j = min(i + sz, len(frame))
-            data["payload"] = frame[i:j]
-            self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
+
 
     def run(self) -> None:
         while True:
