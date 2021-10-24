@@ -42,6 +42,8 @@ class MediaPlayer:
     def teardown(self) -> bool:
         if self.state != self.READY and self.state != self.PLAYING:
             return False
+        if self.state == self.PLAYING:
+            self.pause()
         if not self._teardown_():
             return False
         self.playingFlag.clear()
