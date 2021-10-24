@@ -2,7 +2,7 @@ from typing import Tuple
 import cv2
 from math import floor, sqrt
 import numpy as np
-from PIL import Image, ImageTk
+from PIL import Image
 
 import Rtp
 

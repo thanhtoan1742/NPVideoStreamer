@@ -4,8 +4,6 @@ import socket, sys
 import pickle
 import time
 
-from numpy.lib.type_check import imag
-
 from common import *
 from MediaPlayer import MediaPlayer
 from VideoAssembler import RtpVideoAssembler

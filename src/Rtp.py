@@ -1,6 +1,3 @@
-import sys
-from time import time
-
 from common import *
 
 HEADER_SIZE = 32 * 3

@@ -1,17 +1,13 @@
 from typing import Tuple
-import numpy as np
+from PIL import Image
 
-
-Frame = np.ndarray
-
-
-class RtpVideoAssembler:
+class VideoAssembler:
     def __init__(self) -> None:
         raise NotImplementedError
         self.frames = {}
         self.frameQueue = []
 
-    def nextFrame(self) -> Tuple[bool, Frame]:
+    def nextFrame(self) -> Tuple[bool, Image.Image]:
         raise NotImplementedError
         return (False, None)
 
