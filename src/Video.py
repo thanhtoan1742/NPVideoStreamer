@@ -1,9 +1,11 @@
+import pickle
 from typing import Tuple
 from math import floor, sqrt
-from threading import Thread
+from threading import Thread, Lock
 import cv2
 import numpy as np
 from kivy.graphics.texture import Texture
+from queue import PriorityQueue
 
 import Rtp
 
@@ -41,7 +43,6 @@ def toTexture(image: np.ndarray) -> Texture:
 
 def fitPayload(image: np.ndarray) -> np.ndarray:
     # downscale
-    print(image.shape)
     h, w, d = image.shape
     sz = Rtp.PAYLOAD_SIZE
     f = sqrt(sz / (h*w*d))
@@ -68,9 +69,50 @@ class VideoReader:
 
 
 class VideoAssembler:
+    """
+    Assemble RTP packets to frames.
+    This class assume there is no packet loss and all packets arrived in other.
+    """
     def __init__(self) -> None:
         self.frameBuffer = []
-        self.packetBuffer = []
+        self.packetBuffer = PriorityQueue()
+        self.frameBufferLock = Lock()
 
-    def addPacket(self, packet: dict):
-        pass
+        self.packetCounter = 0
+        self.currentBinFrame = b""
+
+
+    def addPacket(self, packet: Rtp.Packet):
+        self.packetBuffer.put(packet)
+        print(self.packetBuffer.queue[0])
+
+        while True:
+            if self.packetBuffer.empty():
+                break
+
+            if self.packetBuffer.queue[0].sequenceNumber() != self.packetCounter:
+                break
+
+            p = self.packetBuffer.get()
+            self.packetCounter += 1
+            self.currentBinFrame += p.payload
+
+            if p.marker():
+                frame = pickle.loads(self.currentBinFrame)
+                self.currentBinFrame = b""
+                self.frameBufferLock.acquire()
+                self.frameBuffer.append(frame)
+                self.frameBufferLock.release()
+
+
+
+    def nextFrame(self) -> Tuple[bool, np.ndarray]:
+        ok, frame = False, None
+        self.frameBufferLock.acquire()
+        if len(self.frameBuffer) > 0:
+            ok = True
+            frame = self.frameBuffer.pop(0)
+        self.frameBufferLock.release()
+
+        return ok, frame
+

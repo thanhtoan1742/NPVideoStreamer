@@ -1,7 +1,8 @@
 from common import *
 
 HEADER_SIZE = 32 * 3
-PAYLOAD_SIZE = SOCKET_BUFFER_SIZE - HEADER_SIZE
+# PAYLOAD_SIZE = SOCKET_BUFFER_SIZE - HEADER_SIZE
+PAYLOAD_SIZE = 1 << 13
 
 
 class Packet:
@@ -52,6 +53,7 @@ class Packet:
 
 
     def __str__(self) -> str:
+        return f"[{self.sequenceNumber()}, {self.marker()}]"
         return f"marker: {self.marker()}\n" \
             f"sequenceNumber: {self.sequenceNumber()}\n" \
             f"timestamp: {self.timestamp()}\n" \

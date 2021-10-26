@@ -10,7 +10,7 @@ from kivy.clock import Clock
 from common import *
 from MediaPlayer import MediaPlayer
 import Rtsp, Rtp
-from Video import toTexture, toTextureGrey
+from Video import VideoAssembler, toTexture, toTextureGrey
 
 
 
@@ -25,8 +25,7 @@ class Client(MediaPlayer):
         self.clientRtpPort = 0
         self.rtpSocket: socket.socket = None
 
-        self.frameBuffer = []
-        self.frameBufferLock = Lock()
+        self.videoAssembler = VideoAssembler()
 
         self.initRtsp()
 
@@ -102,28 +101,17 @@ class Client(MediaPlayer):
         except:
             print("timed out")
             return
-        print("received data")
+        # print("received data")
 
         if not data:
             return
 
-        payload = Rtp.decode(data).payload
-        frame = pickle.loads(payload)
+        self.videoAssembler.addPacket(Rtp.decode(data))
 
-        self.frameBufferLock.acquire()
-        self.frameBuffer.append(frame)
-        self.frameBufferLock.release()
+
 
     def nextFrame(self):
-        ok, frame = False, None
-
-        self.frameBufferLock.acquire()
-        if len(self.frameBuffer) > 0:
-            ok = True
-            frame = self.frameBuffer.pop(0)
-        self.frameBufferLock.release()
-
-        return ok, frame
+        return self.videoAssembler.nextFrame()
 
 
 class MainApp(App):
