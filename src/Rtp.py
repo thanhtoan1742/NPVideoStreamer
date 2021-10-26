@@ -1,8 +1,8 @@
 from common import *
 
+PACKET_SIZE = 1 << 12
 HEADER_SIZE = 32 * 3
-# PAYLOAD_SIZE = SOCKET_BUFFER_SIZE - HEADER_SIZE
-PAYLOAD_SIZE = 1 << 13
+PAYLOAD_SIZE = PACKET_SIZE -  HEADER_SIZE
 
 
 class Packet:
@@ -40,8 +40,12 @@ class Packet:
             # self.header += data["csrcList"].
 
             self.payload = data["payload"]
+            self.payload += bytearray((PAYLOAD_SIZE >> 3) - len(self.payload))
         except:
             self.payload = bytearray(PAYLOAD_SIZE >> 3)
+
+        assert len(self.header) == (HEADER_SIZE >> 3)
+        assert len(self.payload) == (PAYLOAD_SIZE >> 3)
 
 
     def __eq__(self, o: object) -> bool:
