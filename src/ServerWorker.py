@@ -6,7 +6,7 @@ import pickle
 from common import *
 from MediaPlayer import MediaPlayer
 from AtomicCounter import AtomicCounter
-from Video import VideoReader
+from Video import VideoReader, fitPayload
 import Rtsp, Rtp
 
 
@@ -103,27 +103,16 @@ class ServerWorker(MediaPlayer):
             # "padding": 0, # does not support padding, defaults to 0
             # "extension": 0, # does not support extension, defaults to 0
             # "csrcCount": 0, # does not support other than 0
-            # "marker": 0,
+            "marker": 1,
             "payloadType": 26, # MJPEG type
             "timestamp": self.frameCounter.getThenIncrement(),
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
-            # "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
-            # "payload": pickle.dumps(fitPayload(frame))
+            "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
+            "payload": pickle.dumps(fitPayload(frame))
         }
 
-        sz = Rtp.PAYLOAD_SIZE
-        i = 0
-        while i < len(binFrame):
-            j = min(i + sz, len(binFrame))
-            data["payload"] = binFrame[i:j]
-            data["sequenceNumber"] = self.rtpSequenceNumber.getThenIncrement()
-            data["marker"] = (j == len(binFrame))
-            p = Rtp.Packet(data)
-            print(p)
-            self.rtpSocket.sendto(p.encode(), client)
-
-            i = j
+        self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
 
 
 
