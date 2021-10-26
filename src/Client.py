@@ -1,16 +1,17 @@
 import socket, sys
 import pickle
-
-from common import *
-from MediaPlayer import MediaPlayer
-import Rtsp, Rtp
-
+from threading import Lock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.button import Button
-from kivy.uix.label import Label
 from kivy.clock import Clock
+
+from common import *
+from MediaPlayer import MediaPlayer
+import Rtsp, Rtp
+from Video import toTexture, toTextureGrey
+
 
 
 class Client(MediaPlayer):
@@ -24,7 +25,8 @@ class Client(MediaPlayer):
         self.clientRtpPort = 0
         self.rtpSocket: socket.socket = None
 
-        self.textureBuffer = []
+        self.frameBuffer = []
+        self.frameBufferLock = Lock()
 
         self.initRtsp()
 
@@ -106,9 +108,22 @@ class Client(MediaPlayer):
             return
 
         data = Rtp.decode(data)
-        print(data)
-        texture = pickle.loads(data["payload"])
-        self.textureBuffer.append(texture)
+        frame = pickle.loads(data["payload"])
+
+        self.frameBufferLock.acquire()
+        self.frameBuffer.append(frame)
+        self.frameBufferLock.release()
+
+    def nextFrame(self):
+        ok, frame = False, None
+
+        self.frameBufferLock.acquire()
+        if len(self.frameBuffer) > 0:
+            ok = True
+            frame = self.frameBuffer.pop(0)
+        self.frameBufferLock.release()
+
+        return ok, frame
 
 
 class MainApp(App):
@@ -139,9 +154,6 @@ class MainApp(App):
         teardown = Button(text="teardown")
         teardown.bind(on_press=self.teardown_callback)
         buttons.add_widget(teardown)
-
-        self.label = Label(text="a")
-        buttons.add_widget(self.label)
 
         Clock.schedule_interval(self.update, 1/self.fps)
         return layout
@@ -175,12 +187,12 @@ class MainApp(App):
     def update(self, dt):
         if not self.playing:
             return
-        if len(self.client.textureBuffer) == 0:
+
+        ok, frame = self.client.nextFrame()
+        if not ok:
             return
 
-        texture = self.client.textureBuffer.pop(0)
-        # self.label.text = texture
-        self.image.texture = texture
+        self.image.texture = toTexture(frame)
 
 
 if __name__ == "__main__":

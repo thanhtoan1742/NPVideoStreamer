@@ -1,5 +1,4 @@
 from random import randint
-from math import sqrt, floor
 import socket
 import numpy as np
 import pickle
@@ -7,8 +6,9 @@ import pickle
 from common import *
 from MediaPlayer import MediaPlayer
 from AtomicCounter import AtomicCounter
-from Video import VideoReader, toTexture
+from Video import VideoReader, fitPayload
 import Rtsp, Rtp
+
 
 
 class ServerWorker(MediaPlayer):
@@ -107,10 +107,8 @@ class ServerWorker(MediaPlayer):
             "timestamp": self.frameCounter.getThenIncrement(),
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
-
             "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
-            "payload": pickle.dumps(toTexture(frame))
-            # "payload": pickle.dumps("data" + str(123))
+            "payload": pickle.dumps(fitPayload(frame))
         }
 
         self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
