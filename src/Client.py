@@ -28,6 +28,7 @@ class Client(MediaPlayer):
         self.videoAssembler = VideoAssembler()
 
         self.initRtsp()
+        self.cnt = 0
 
 
     def initRtsp(self) -> None:
@@ -98,8 +99,12 @@ class Client(MediaPlayer):
     def _stream_(self) -> None:
         try:
             data, _ = self.rtpSocket.recvfrom(Rtp.PACKET_SIZE)
+        except socket.timeout:
+            # print("timed out")
+            print("timed out", self.cnt)
+            return
         except:
-            print("timed out")
+            print("error in receiving data")
             return
         # print("received data")
 
@@ -107,6 +112,7 @@ class Client(MediaPlayer):
             return
 
         self.videoAssembler.addPacket(Rtp.decode(data))
+        self.cnt += 1
 
 
 
