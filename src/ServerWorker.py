@@ -30,6 +30,7 @@ class ServerWorker(MediaPlayer):
 
         self.request = None
 
+
     def __del__(self) -> None:
         pass
 
@@ -71,8 +72,9 @@ class ServerWorker(MediaPlayer):
             return False
 
         self.session = randint(100000, 999999)
-        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.clientRtpPort = self.request["clientPort"]
+        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.rtpSocket.connect((self.clientIp, self.clientRtpPort))
 
         self.sendRtspRespond(Rtsp.StatusCode.OK, isSetup=True)
         return True
@@ -96,7 +98,6 @@ class ServerWorker(MediaPlayer):
         if not ok:
             return
 
-        client = (self.clientIp, self.clientRtpPort)
         binFrame = pickle.dumps(frame)
         data = {
             "version": 2,
@@ -120,8 +121,8 @@ class ServerWorker(MediaPlayer):
             data["sequenceNumber"] = self.rtpSequenceNumber.getThenIncrement()
             data["marker"] = (j == len(binFrame))
             p = Rtp.Packet(data)
-            print(p)
-            self.rtpSocket.sendto(p.encode(), client)
+            # print(p)
+            self.rtpSocket.sendall(p.encode())
 
             i = j
 
@@ -129,7 +130,7 @@ class ServerWorker(MediaPlayer):
 
     def run(self) -> None:
         while True:
-            message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE)
+            message = self.rtspSocket.recv(Rtsp.RTSP_MESSAGE_SIZE)
             if not message:
                 break
             self.processRtspRequest(message.decode())
