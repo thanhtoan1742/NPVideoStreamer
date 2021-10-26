@@ -1,6 +1,5 @@
 from common import *
 from threading import Event, Thread
-import time
 
 class MediaPlayer:
     """Player class manage state of a media player"""
@@ -11,6 +10,7 @@ class MediaPlayer:
     def __init__(self) -> None:
         self.state = self.INIT
         self.playingFlag = Event()
+        self.streamingFlag = Event()
         self.streamThread: Thread = None
         self.fps = 60
 
@@ -21,8 +21,11 @@ class MediaPlayer:
         if not self._setup_():
             return False
 
-        self.state = self.READY
+        self.streamingFlag.set()
         self.playingFlag.clear()
+        self.streamThread = Thread(target=self.stream)
+        self.streamThread.start()
+        self.state = self.READY
         return True
 
     def play(self) -> bool:
@@ -32,12 +35,8 @@ class MediaPlayer:
         if not self._play_():
             return False
 
-        self.state = self.PLAYING
         self.playingFlag.set()
-
-        self.streamThread = Thread(target=self.stream)
-        self.streamThread.start()
-
+        self.state = self.PLAYING
         return True
 
 
@@ -51,7 +50,6 @@ class MediaPlayer:
         self.playingFlag.clear()
         self.state = self.READY
 
-        self.streamThread.join()
         return True
 
     def teardown(self) -> bool:
@@ -65,18 +63,19 @@ class MediaPlayer:
             return False
 
         self.playingFlag.clear()
+        self.streamingFlag.clear()
+        self.streamThread.join()
         self.state = self.INIT
         return True
 
     def stream(self) -> None:
-        while True:
+        while self.streamingFlag.is_set():
             if not self.playingFlag.is_set():
-                break
-            time.sleep(1/self.fps)
+                continue
+            self._stream_()
 
-            print("before processing frame")
-            self.processFrame()
-            print("after processing frame")
+    def _stream_(self) -> None:
+        raise NotImplementedError
 
     def _setup_(self) -> bool:
         raise NotImplementedError
@@ -89,7 +88,3 @@ class MediaPlayer:
 
     def _teardown_(self) -> bool:
         raise NotImplementedError
-
-    def processFrame(self) -> None:
-        raise NotImplementedError
-

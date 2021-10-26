@@ -7,7 +7,7 @@ import pickle
 from common import *
 from MediaPlayer import MediaPlayer
 from AtomicCounter import AtomicCounter
-from VideoReader import VideoReader, fitPayload
+from Video import VideoReader, toTexture
 import Rtsp, Rtp
 
 
@@ -91,7 +91,7 @@ class ServerWorker(MediaPlayer):
         return True
 
 
-    def processFrame(self) -> None:
+    def _stream_(self) -> None:
         ok, frame = self.videoReader.nextFrame()
         if not ok:
             return
@@ -109,7 +109,8 @@ class ServerWorker(MediaPlayer):
             # "csrcList": [], # does not support other than empty list
 
             "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
-            "payload": pickle.dumps(fitPayload(frame))
+            "payload": pickle.dumps(toTexture(frame))
+            # "payload": pickle.dumps("data" + str(123))
         }
 
         self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
