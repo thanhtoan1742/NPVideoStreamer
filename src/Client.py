@@ -122,7 +122,7 @@ class MainApp(App):
 
         layout = BoxLayout(orientation="vertical")
 
-        self.image = Image(size_hint_y=4/5)
+        self.image = Image(size_hint_y=4/5, allow_stretch=True)
         layout.add_widget(self.image)
         buttons = BoxLayout(size_hint_y=1/5)
         layout.add_widget(buttons)
