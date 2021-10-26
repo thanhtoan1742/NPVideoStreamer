@@ -42,6 +42,15 @@ class Packet:
         except:
             self.payload = bytearray(PAYLOAD_SIZE >> 3)
 
+
+    def __eq__(self, o: object) -> bool:
+        return self.sequenceNumber() == o.sequenceNumber()
+
+
+    def __lt__(self, o: object) -> bool:
+        return self.sequenceNumber() < o.sequenceNumber()
+
+
     def __str__(self) -> str:
         return f"marker: {self.marker()}\n" \
             f"sequenceNumber: {self.sequenceNumber()}\n" \
