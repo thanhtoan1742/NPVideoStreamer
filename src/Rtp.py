@@ -3,24 +3,6 @@ from common import *
 HEADER_SIZE = 32 * 3
 PAYLOAD_SIZE = SOCKET_BUFFER_SIZE - HEADER_SIZE
 
-def decode(data: bytearray) -> dict:
-    p = Packet()
-    p.header = data[:HEADER_SIZE >> 3]
-    p.payload = data[HEADER_SIZE >> 3:]
-    return {
-        "version": p.version(),
-        # "padding": p.padding(),
-        # "extension": p.extension(),
-        # "csrcCount": p.csrcCount(),
-        "marker": p.marker(),
-        "payloadType": p.payloadType(),
-        "sequenceNumber": p.sequenceNumber(),
-        "timestamp": p.timestamp(),
-        "ssrc": p.ssrc(),
-        # "csrcList": p.csrcList(),
-        "payload": p.payload,
-    }
-
 
 class Packet:
     def __init__(self, data: dict = {}) -> None:
@@ -124,3 +106,24 @@ class Packet:
         """Return RTP payload"""
         return self.payload
 
+    def toDict(self) -> dict:
+        return {
+            "version": self.version(),
+            # "padding": self.padding(),
+            # "extension": self.extension(),
+            # "csrcCount": self.csrcCount(),
+            "marker": self.marker(),
+            "payloadType": self.payloadType(),
+            "sequenceNumber": self.sequenceNumber(),
+            "timestamp": self.timestamp(),
+            "ssrc": self.ssrc(),
+            # "csrcList": p.csrcList(),
+            "payload": self.payload,
+        }
+
+
+def decode(data: bytearray) -> Packet:
+    p = Packet()
+    p.header = data[:HEADER_SIZE >> 3]
+    p.payload = data[HEADER_SIZE >> 3:]
+    return p

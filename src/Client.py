@@ -107,8 +107,8 @@ class Client(MediaPlayer):
         if not data:
             return
 
-        data = Rtp.decode(data)
-        frame = pickle.loads(data["payload"])
+        payload = Rtp.decode(data).payload
+        frame = pickle.loads(payload)
 
         self.frameBufferLock.acquire()
         self.frameBuffer.append(frame)

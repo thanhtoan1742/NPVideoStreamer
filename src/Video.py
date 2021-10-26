@@ -65,3 +65,12 @@ class VideoReader:
             return False, None
 
         return True, frame
+
+
+class VideoAssembler:
+    def __init__(self) -> None:
+        self.frameBuffer = []
+        self.packetBuffer = []
+
+    def addPacket(self, packet: dict):
+        pass
