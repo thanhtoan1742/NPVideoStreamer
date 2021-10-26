@@ -1,13 +1,13 @@
 from common import *
 
-HEADER_SIZE = 32 * 3
-# PAYLOAD_SIZE = SOCKET_BUFFER_SIZE - HEADER_SIZE
-PAYLOAD_SIZE = 1 << 13
+PACKET_SIZE = 1 << 14
+HEADER_SIZE = (32 * 3) >> 3
+PAYLOAD_SIZE = PACKET_SIZE -  HEADER_SIZE
 
 
 class Packet:
     def __init__(self, data: dict = {}) -> None:
-        self.header = bytearray(HEADER_SIZE >> 3)
+        self.header = bytearray(HEADER_SIZE)
         try:
             self.header[0] = (data["version"] << 6) & 0xFF
 
@@ -40,8 +40,12 @@ class Packet:
             # self.header += data["csrcList"].
 
             self.payload = data["payload"]
+            self.payload += bytearray(PAYLOAD_SIZE - len(self.payload))
         except:
-            self.payload = bytearray(PAYLOAD_SIZE >> 3)
+            self.payload = bytearray(PAYLOAD_SIZE)
+
+        assert len(self.header) == HEADER_SIZE, f"{HEADER_SIZE} {len(self.header)}"
+        assert len(self.payload) == PAYLOAD_SIZE, f"{PAYLOAD_SIZE} {len(self.payload)}"
 
 
     def __eq__(self, o: object) -> bool:
@@ -53,7 +57,7 @@ class Packet:
 
 
     def __str__(self) -> str:
-        return f"[{self.sequenceNumber()}, {self.marker()}]"
+        return f"[{self.sequenceNumber()} {self.marker()}]"
         return f"marker: {self.marker()}\n" \
             f"sequenceNumber: {self.sequenceNumber()}\n" \
             f"timestamp: {self.timestamp()}\n" \
@@ -135,6 +139,10 @@ class Packet:
 
 def decode(data: bytearray) -> Packet:
     p = Packet()
-    p.header = data[:HEADER_SIZE >> 3]
-    p.payload = data[HEADER_SIZE >> 3:]
+    p.header = data[:HEADER_SIZE]
+    p.payload = data[HEADER_SIZE:]
+
+    u = p.header + p.payload
+
+    assert len(u) == PACKET_SIZE, f"{HEADER_SIZE} {PAYLOAD_SIZE} {PACKET_SIZE}\n {len(p.header)} {len(p.payload)} {len(u)}"
     return p

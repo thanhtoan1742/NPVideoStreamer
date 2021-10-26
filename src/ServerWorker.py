@@ -129,7 +129,7 @@ class ServerWorker(MediaPlayer):
 
     def run(self) -> None:
         while True:
-            message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE)
+            message = self.rtspSocket.recv(Rtsp.RTSP_MESSAGE_SIZE)
             if not message:
                 break
             self.processRtspRequest(message.decode())

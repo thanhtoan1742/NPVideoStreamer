@@ -60,7 +60,7 @@ class Client(MediaPlayer):
         message = Rtsp.createRequest(request)
         self.rtspSocket.sendall(message.encode())
 
-        message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE).decode()
+        message = self.rtspSocket.recv(Rtsp.RTSP_MESSAGE_SIZE).decode()
         self.respond = Rtsp.parseRespond(message)
         if self.respond["statusCode"] > 299:
             log(self.respond["statusCode"], "server responded")
@@ -97,7 +97,7 @@ class Client(MediaPlayer):
 
     def _stream_(self) -> None:
         try:
-            data, _ = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
+            data, _ = self.rtpSocket.recvfrom(Rtp.PACKET_SIZE)
         except:
             print("timed out")
             return
