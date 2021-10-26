@@ -1,6 +1,5 @@
 from random import randint
 import socket
-import numpy as np
 import pickle
 
 from common import *

@@ -1,6 +1,4 @@
 import socket, sys
-import pickle
-from threading import Lock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
@@ -102,7 +100,7 @@ class Client(MediaPlayer):
         try:
             data = self.rtpSocket.recv(Rtp.PACKET_SIZE)
         except socket.timeout:
-            print("timed out", self.cnt)
+            print("timed out")
             return
         except:
             print("error in receiving data")

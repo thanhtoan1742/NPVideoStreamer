@@ -1,7 +1,7 @@
 import pickle
 from typing import Tuple
 from math import floor, sqrt
-from threading import Thread, Lock
+from threading import Lock
 import cv2
 import numpy as np
 from kivy.graphics.texture import Texture
