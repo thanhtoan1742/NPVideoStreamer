@@ -1,16 +1,34 @@
 import socket, sys
+import numpy as np
+import cv2
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.button import Button
 from kivy.clock import Clock
+from kivy.graphics.texture import Texture
+
 
 from common import *
 from MediaPlayer import MediaPlayer
 import Rtsp, Rtp
-from Video import VideoAssembler, toTexture, toTextureGrey
+from Video import VideoAssembler
 
 
+
+
+def toTexture(image: np.ndarray) -> Texture:
+    buffer = cv2.flip(image, 0).tostring()
+    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="bgr")
+    texture.blit_buffer(buffer, colorfmt="bgr", bufferfmt="ubyte")
+    return texture
+
+
+def toTextureGrey(image: np.ndarray) -> Texture:
+    buffer = cv2.flip(image, 0).tostring()
+    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="luminance")
+    texture.blit_buffer(buffer, colorfmt="luminance", bufferfmt="ubyte")
+    return texture
 
 class Client(MediaPlayer):
     def __init__(self, serverIp: str, serverRtspPort: int, fileName: str) -> None:
@@ -182,6 +200,7 @@ class MainApp(App):
 
         ok, frame = self.client.nextFrame()
         if not ok:
+            print("missed frame")
             return
 
         self.image.texture = toTexture(frame)
