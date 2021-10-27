@@ -1,4 +1,5 @@
 .vscode/
+videos/
 src/__pycache__/
 src/interactive.ipynb
 src/test.py

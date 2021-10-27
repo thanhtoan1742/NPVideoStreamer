@@ -1,21 +1,13 @@
 import pickle
 from typing import Tuple
 from math import floor, sqrt
-from threading import Thread, Lock
+from threading import Lock
 import cv2
 import numpy as np
-from kivy.graphics.texture import Texture
 from queue import PriorityQueue
 
 import Rtp
 
-
-
-def toTextureGrey(image: np.ndarray) -> Texture:
-    buffer = cv2.flip(image, 0).tostring()
-    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="luminance")
-    texture.blit_buffer(buffer, colorfmt="luminance", bufferfmt="ubyte")
-    return texture
 
 
 def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
@@ -32,13 +24,6 @@ def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
 
     return image
 
-
-
-def toTexture(image: np.ndarray) -> Texture:
-    buffer = cv2.flip(image, 0).tostring()
-    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="bgr")
-    texture.blit_buffer(buffer, colorfmt="bgr", bufferfmt="ubyte")
-    return texture
 
 
 def fitPayload(image: np.ndarray) -> np.ndarray:
