@@ -1,6 +1,6 @@
 from common import *
 
-PACKET_SIZE = 1 << 16
+PACKET_SIZE = 1 << 15
 HEADER_SIZE = (32 * 3) >> 3
 PAYLOAD_SIZE = PACKET_SIZE -  HEADER_SIZE
 
