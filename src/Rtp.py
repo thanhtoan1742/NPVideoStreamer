@@ -1,6 +1,6 @@
 from common import *
 
-PACKET_SIZE = 1 << 16
+PACKET_SIZE = 1 << 15
 HEADER_SIZE = (32 * 3) >> 3
 PAYLOAD_SIZE = PACKET_SIZE -  HEADER_SIZE
 
@@ -144,5 +144,7 @@ def decode(data: bytearray) -> Packet:
 
     u = p.header + p.payload
 
-    assert len(u) == PACKET_SIZE, f"{HEADER_SIZE} {PAYLOAD_SIZE} {PACKET_SIZE}\n {len(p.header)} {len(p.payload)} {len(u)}"
+    assert len(u) == PACKET_SIZE, f"\n{HEADER_SIZE} {PAYLOAD_SIZE} {PACKET_SIZE}" \
+                                f"\n{len(p.header)} {len(p.payload)} {len(u)}\n" \
+                                + str(p)
     return p

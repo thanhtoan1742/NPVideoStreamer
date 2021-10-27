@@ -200,7 +200,7 @@ class MainApp(App):
 
         ok, frame = self.client.nextFrame()
         if not ok:
-            print("missed frame")
+            # print("missed frame")
             return
 
         self.image.texture = toTexture(frame)
