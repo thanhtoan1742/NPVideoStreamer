@@ -1,6 +1,5 @@
 from random import randint
 import socket
-import numpy as np
 import pickle
 
 from common import *
@@ -29,6 +28,7 @@ class ServerWorker(MediaPlayer):
         self.rtpSequenceNumber = AtomicCounter()
 
         self.request = None
+
 
     def __del__(self) -> None:
         pass
@@ -71,8 +71,8 @@ class ServerWorker(MediaPlayer):
             return False
 
         self.session = randint(100000, 999999)
-        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.clientRtpPort = self.request["clientPort"]
+        self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         self.sendRtspRespond(Rtsp.StatusCode.OK, isSetup=True)
         return True
@@ -97,7 +97,6 @@ class ServerWorker(MediaPlayer):
             return
 
         client = (self.clientIp, self.clientRtpPort)
-        binFrame = pickle.dumps(frame)
         data = {
             "version": 2,
             # "padding": 0, # does not support padding, defaults to 0
@@ -109,7 +108,7 @@ class ServerWorker(MediaPlayer):
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
             "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
-            "payload": pickle.dumps(fitPayload(frame))
+            "payload": pickle.dumps(fitPayload(frame)),
         }
 
         self.rtpSocket.sendto(Rtp.Packet(data).encode(), client)
@@ -118,7 +117,7 @@ class ServerWorker(MediaPlayer):
 
     def run(self) -> None:
         while True:
-            message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE)
+            message = self.rtspSocket.recv(Rtsp.RTSP_MESSAGE_SIZE)
             if not message:
                 break
             self.processRtspRequest(message.decode())

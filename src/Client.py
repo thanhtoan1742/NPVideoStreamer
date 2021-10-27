@@ -28,7 +28,6 @@ def toTextureGrey(image: np.ndarray) -> Texture:
     return texture
 
 
-
 class Client(MediaPlayer):
     def __init__(self, serverIp: str, serverRtspPort: int, fileName: str) -> None:
         super().__init__()
@@ -75,7 +74,7 @@ class Client(MediaPlayer):
         message = Rtsp.createRequest(request)
         self.rtspSocket.sendall(message.encode())
 
-        message = self.rtspSocket.recv(SOCKET_BUFFER_SIZE).decode()
+        message = self.rtspSocket.recv(Rtsp.RTSP_MESSAGE_SIZE).decode()
         self.respond = Rtsp.parseRespond(message)
         if self.respond["statusCode"] > 299:
             log(self.respond["statusCode"], "server responded")
@@ -95,6 +94,7 @@ class Client(MediaPlayer):
             return False
 
         self.session = self.respond["session"]
+
         return True
 
     def _play_(self) -> bool:
@@ -112,9 +112,12 @@ class Client(MediaPlayer):
 
     def _stream_(self) -> None:
         try:
-            data, _ = self.rtpSocket.recvfrom(SOCKET_BUFFER_SIZE)
-        except:
+            data, _ = self.rtpSocket.recvfrom(Rtp.PACKET_SIZE)
+        except socket.timeout:
             print("timed out")
+            return
+        except:
+            print("error in receiving data")
             return
         # print("received data")
 
@@ -193,6 +196,7 @@ class MainApp(App):
 
         ok, frame = self.client.nextFrame()
         if not ok:
+            print("missed frame")
             return
 
         self.image.texture = toTexture(frame)

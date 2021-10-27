@@ -1,5 +1,8 @@
 from common import *
 
+
+RTSP_MESSAGE_SIZE = 1 << 10
+
 class Method:
     SETUP = "SETUP"
     PLAY = "PLAY"

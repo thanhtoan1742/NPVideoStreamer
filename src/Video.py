@@ -25,7 +25,6 @@ def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
     return image
 
 
-
 def fitPayload(image: np.ndarray) -> np.ndarray:
     # downscale
     h, w, d = image.shape
@@ -69,7 +68,10 @@ class VideoAssembler:
 
     def addPacket(self, packet: Rtp.Packet):
         self.packetBuffer.put(packet)
-        print(self.packetBuffer.queue[0])
+        # print(self.packetBuffer.queue[0])
+        # for p in self.packetBuffer.queue:
+        #     print(p, end=" ")
+        # print()
 
         while True:
             if self.packetBuffer.empty():
