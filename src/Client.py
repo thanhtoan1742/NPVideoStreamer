@@ -97,7 +97,7 @@ class Client(MediaPlayer):
 
         self.session = self.respond["session"]
         self.rtpSocket, _ = s.accept()
-        self.rtpSocket.settimeout(1)
+        self.rtpSocket.settimeout(0.5)
 
         return True
 
