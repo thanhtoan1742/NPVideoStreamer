@@ -86,7 +86,7 @@ class Client(MediaPlayer):
 
     def _setup_(self) -> bool:
         self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rtpSocket.settimeout(1)
+        self.rtpSocket.settimeout(0.5)
         self.rtpSocket.bind(("", 0)) # let os pick port
         self.clientRtpPort  = int(self.rtpSocket.getsockname()[1]) # get the port
 
