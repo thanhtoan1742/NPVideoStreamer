@@ -132,7 +132,7 @@ class Client(MediaPlayer):
         return self.videoAssembler.nextFrame()
 
 
-class MainApp(App):
+class ClientApp(App):
     def build(self):
         self.client = Client(serverIp, rtspPort, fileName)
         self.fps = 60
@@ -210,4 +210,4 @@ if __name__ == "__main__":
     except:
         print("Usage: python Client.py serverIP serverRtspPort fileName\n")
 
-    MainApp().run()
+    ClientApp().run()
