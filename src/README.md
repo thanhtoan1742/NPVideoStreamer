@@ -1,3 +1,8 @@
+## Implementation
+
+This implementation downscale video frame data then send over UDP connection.
+
+## How to run
 To install all dependencies, run:
 ```sh
 pip install -r requirements.txt
