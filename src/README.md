@@ -1,3 +1,9 @@
+## Implementation
+
+This implementation split video frame data then send over TCP connection.
+
+## How to run
+
 To install all dependencies, run:
 ```sh
 pip install -r requirements.txt
