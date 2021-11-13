@@ -8,13 +8,10 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 
-
 from common import *
 from MediaPlayer import MediaPlayer
 import Rtsp, Rtp
 from Video import VideoAssembler
-
-
 
 
 def toTexture(image: np.ndarray) -> Texture:
@@ -136,7 +133,7 @@ class Client(MediaPlayer):
         return self.videoAssembler.nextFrame()
 
 
-class MainApp(App):
+class ClientApp(App):
     def build(self):
         self.client = Client(serverIp, rtspPort, fileName)
         self.fps = 60
@@ -200,7 +197,7 @@ class MainApp(App):
 
         ok, frame = self.client.nextFrame()
         if not ok:
-            # print("missed frame")
+            print("missed frame")
             return
 
         self.image.texture = toTexture(frame)
@@ -214,4 +211,4 @@ if __name__ == "__main__":
     except:
         print("Usage: python Client.py serverIP serverRtspPort fileName\n")
 
-    MainApp().run()
+    ClientApp().run()
