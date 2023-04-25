@@ -1,52 +1,16 @@
 from common import *
 
-PACKET_SIZE = 1 << 15
+
+PACKET_SIZE = 1 << 13
 HEADER_SIZE = (32 * 3) >> 3
 PAYLOAD_SIZE = PACKET_SIZE -  HEADER_SIZE
 
 
 class Packet:
-    def __init__(self, data: dict = {}) -> None:
-        self.header = bytearray(HEADER_SIZE)
-        try:
-            self.header[0] = (data["version"] << 6) & 0xFF
-
-            # currently do not support padding, defaults to 0
-            # self.header |= (data["padding"] << 5) & 0xFF
-
-            # currently do not support extension, defaults to 0
-            # self.header[0] |= (data["extension"] << 4) & 0xFF
-
-            # currently do not support csrcCount, defaults to 0
-            # self.header |= data["csrcCount"]
-
-            self.header[1] = (data["marker"] << 7) & 0xFF
-
-            self.header[1] |= data["payloadType"] & 0xFF
-
-            self.header[2] = (data["sequenceNumber"] >> 8) & 0xFF
-            self.header[3] = data["sequenceNumber"] & 0xFF
-
-            self.header[4] = (data["timestamp"] >> 24) & 0xFF
-            self.header[5] = (data["timestamp"] >> 16) & 0xFF
-            self.header[6] = (data["timestamp"] >> 8) & 0xFF
-            self.header[7] = data["timestamp"] & 0xFF
-
-            self.header[8] = (data["ssrc"] >> 24) & 0xFF
-            self.header[9] = (data["ssrc"] >> 16) & 0xFF
-            self.header[10] = (data["ssrc"] >> 8) & 0xFF
-            self.header[11] = data["ssrc"] & 0xFF
-
-            # self.header += data["csrcList"].
-
-            self.payload = data["payload"]
-            self.payload += bytearray(PAYLOAD_SIZE - len(self.payload))
-        except:
-            self.payload = bytearray(PAYLOAD_SIZE)
-
-        assert len(self.header) == HEADER_SIZE, f"{HEADER_SIZE} {len(self.header)}"
-        assert len(self.payload) == PAYLOAD_SIZE, f"{PAYLOAD_SIZE} {len(self.payload)}"
-
+    def __init__(self, header: bytearray, payload: bytearray) -> None:
+        assert len(header) == HEADER_SIZE
+        self.header = header
+        self.payload = payload
 
     def __eq__(self, o: object) -> bool:
         return self.sequenceNumber() == o.sequenceNumber()
@@ -138,13 +102,43 @@ class Packet:
 
 
 def decode(data: bytearray) -> Packet:
-    p = Packet()
-    p.header = data[:HEADER_SIZE]
-    p.payload = data[HEADER_SIZE:]
+    return Packet(data[:HEADER_SIZE], data[HEADER_SIZE:])
 
-    u = p.header + p.payload
 
-    assert len(u) == PACKET_SIZE, f"\n{HEADER_SIZE} {PAYLOAD_SIZE} {PACKET_SIZE}" \
-                                f"\n{len(p.header)} {len(p.payload)} {len(u)}\n" \
-                                + str(p)
-    return p
+def packetFromDict(data: dict = {}) -> Packet:
+    header = bytearray(HEADER_SIZE)
+
+    header[0] = (data["version"] << 6) & 0xFF
+
+    # currently do not support padding, defaults to 0
+    # header |= (data["padding"] << 5) & 0xFF
+
+    # currently do not support extension, defaults to 0
+    # header[0] |= (data["extension"] << 4) & 0xFF
+
+    # currently do not support csrcCount, defaults to 0
+    # header |= data["csrcCount"]
+
+    header[1] = (data["marker"] << 7) & 0xFF
+
+    header[1] |= data["payloadType"] & 0xFF
+
+    header[2] = (data["sequenceNumber"] >> 8) & 0xFF
+    header[3] = data["sequenceNumber"] & 0xFF
+
+    header[4] = (data["timestamp"] >> 24) & 0xFF
+    header[5] = (data["timestamp"] >> 16) & 0xFF
+    header[6] = (data["timestamp"] >> 8) & 0xFF
+    header[7] = data["timestamp"] & 0xFF
+
+    header[8] = (data["ssrc"] >> 24) & 0xFF
+    header[9] = (data["ssrc"] >> 16) & 0xFF
+    header[10] = (data["ssrc"] >> 8) & 0xFF
+    header[11] = data["ssrc"] & 0xFF
+
+    # header += data["csrcList"].
+
+    payload = data["payload"]
+
+    return Packet(header, payload)
+

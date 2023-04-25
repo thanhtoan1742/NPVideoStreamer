@@ -6,12 +6,13 @@ from common import *
 from MediaPlayer import MediaPlayer
 from AtomicCounter import AtomicCounter
 from Video import VideoReader
-import Rtsp, Rtp
-
+import Rtsp, Rtp, Ps
 
 
 class ServerWorker(MediaPlayer):
-    def __init__(self, rtspSocket: socket.socket, clientIp: str, clientRtspPort: int) -> None:
+    def __init__(
+        self, rtspSocket: socket.socket, clientIp: str, clientRtspPort: int
+    ) -> None:
         super().__init__()
 
         self.rtspSocket = rtspSocket
@@ -29,16 +30,16 @@ class ServerWorker(MediaPlayer):
 
         self.request = None
 
+        self.logger = getLogger("server-worker")
 
     def __del__(self) -> None:
         pass
 
-    def sendRtspRespond(self, statusCode: Rtsp.StatusCode, isSetup: bool = False) -> None:
+    def sendRtspRespond(
+        self, statusCode: Rtsp.StatusCode, isSetup: bool = False
+    ) -> None:
         """Send RTSP reply to the client."""
-        respond = {
-            "statusCode": statusCode,
-            "CSeq": self.request["CSeq"]
-        }
+        respond = {"statusCode": statusCode, "CSeq": self.request["CSeq"]}
         if statusCode == Rtsp.StatusCode.OK:
             respond["session"] = self.session
         message = Rtsp.createRespond(respond)
@@ -60,7 +61,6 @@ class ServerWorker(MediaPlayer):
 
         if self.request["method"] == Rtsp.Method.TEARDOWN:
             self.teardown()
-
 
     def _setup_(self) -> bool:
         try:
@@ -91,7 +91,6 @@ class ServerWorker(MediaPlayer):
         self.sendRtspRespond(Rtsp.StatusCode.OK)
         return True
 
-
     def _stream_(self) -> None:
         ok, frame = self.videoReader.nextFrame()
         if not ok:
@@ -104,7 +103,7 @@ class ServerWorker(MediaPlayer):
             # "extension": 0, # does not support extension, defaults to 0
             # "csrcCount": 0, # does not support other than 0
             # "marker": 0,
-            "payloadType": 26, # MJPEG type
+            "payloadType": 26,  # MJPEG type
             "timestamp": self.frameCounter.getThenIncrement(),
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
@@ -118,14 +117,15 @@ class ServerWorker(MediaPlayer):
             j = min(i + sz, len(binFrame))
             data["payload"] = binFrame[i:j]
             data["sequenceNumber"] = self.rtpSequenceNumber.getThenIncrement()
-            data["marker"] = (j == len(binFrame))
-            p = Rtp.Packet(data)
-            # print(p)
+            data["marker"] = j == len(binFrame)
+            rtpPacket = Rtp.packetFromDict(data)
+            p = Ps.Packet(rtpPacket.encode())
             self.rtpSocket.sendall(p.encode())
+            self.logger.info(
+                "sent packet size: %s, packet: ", str(p.payloadSize()), str(rtpPacket)
+            )
 
             i = j
-
-
 
     def run(self) -> None:
         while True:
@@ -136,4 +136,3 @@ class ServerWorker(MediaPlayer):
 
         self.teardown()
         self.rtspSocket.close()
-

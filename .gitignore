@@ -1,8 +1,7 @@
 .vscode/
 videos/
+data/
 src/__pycache__/
 src/interactive.ipynb
 src/test.py
-clientOutput.txt
-serverOutput.txt
-
+src/*.log

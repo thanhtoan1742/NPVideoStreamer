@@ -1,4 +1,6 @@
 import socket, sys
+from threading import Thread
+from queue import Queue
 import numpy as np
 import cv2
 from kivy.app import App
@@ -10,7 +12,8 @@ from kivy.graphics.texture import Texture
 
 from common import *
 from MediaPlayer import MediaPlayer
-import Rtsp, Rtp
+from PsReceiver import PsReceiver
+import Rtsp, Rtp, Ps
 from Video import VideoAssembler
 
 
@@ -23,13 +26,18 @@ def toTexture(image: np.ndarray) -> Texture:
 
 def toTextureGrey(image: np.ndarray) -> Texture:
     buffer = cv2.flip(image, 0).tostring()
-    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="luminance")
+    texture = Texture.create(
+        size=(image.shape[1], image.shape[0]), colorfmt="luminance"
+    )
     texture.blit_buffer(buffer, colorfmt="luminance", bufferfmt="ubyte")
     return texture
+
 
 class Client(MediaPlayer):
     def __init__(self, serverIp: str, serverRtspPort: int, fileName: str) -> None:
         super().__init__()
+
+        self.logger = getLogger("client")
 
         self.serverIp = serverIp
         self.serverRtspPort = serverRtspPort
@@ -37,26 +45,17 @@ class Client(MediaPlayer):
 
         self.clientRtpPort = 0
         self.rtpSocket: socket.socket = None
+        self.packetReceiver = PsReceiver()
 
         self.videoAssembler = VideoAssembler()
 
-        self.initRtsp()
-
-
-    def initRtsp(self) -> None:
-        """Connect to the Server. Start a new RTSP/TCP session."""
-
+        self.psReceiver = PsReceiver(self.serverIp, self.logger)
         self.CSeq = 0
         self.session = -1
-
-        self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.rtspSocket.connect((self.serverIp, self.serverRtspPort))
-
 
     def __del__(self) -> None:
         self.teardown()
         self.rtspSocket.close()
-
 
     def sendRtspRequest(self, method: Rtsp.Method) -> bool:
         self.CSeq += 1
@@ -81,11 +80,10 @@ class Client(MediaPlayer):
 
         return True
 
-
     def _setup_(self) -> bool:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(("", 0))
-        self.clientRtpPort  = int(s.getsockname()[1]) # get the port
+        self.clientRtpPort = int(s.getsockname()[1])  # get the port
         s.listen()
 
         if not self.sendRtspRequest(Rtsp.Method.SETUP):
@@ -110,24 +108,13 @@ class Client(MediaPlayer):
         self.rtpSocket.close()
         return True
 
-
     def _stream_(self) -> None:
-        try:
-            data = self.rtpSocket.recv(Rtp.PACKET_SIZE)
-        except socket.timeout:
-            print("timed out")
-            return
-        except:
-            print("error in receiving data")
-            return
-        # print("received data")
-
-        if not data:
+        if self.packetSizeQueue.empty():
             return
 
+        size = self.packetSizeQueue.get()
+        data = self.rtpBuffer.readIfEnough(size)
         self.videoAssembler.addPacket(Rtp.decode(data))
-
-
 
     def nextFrame(self):
         return self.videoAssembler.nextFrame()
@@ -135,15 +122,15 @@ class Client(MediaPlayer):
 
 class ClientApp(App):
     def build(self):
-        self.client = Client(serverIp, rtspPort, fileName)
+        self.client = Client(ip, rtspPort, fileName)
         self.fps = 60
         self.playing = False
 
         layout = BoxLayout(orientation="vertical")
 
-        self.image = Image(size_hint_y=4/5)
+        self.image = Image(size_hint_y=4 / 5)
         layout.add_widget(self.image)
-        buttons = BoxLayout(size_hint_y=1/5)
+        buttons = BoxLayout(size_hint_y=1 / 5)
         layout.add_widget(buttons)
 
         setup = Button(text="setup")
@@ -162,34 +149,28 @@ class ClientApp(App):
         teardown.bind(on_press=self.teardown_callback)
         buttons.add_widget(teardown)
 
-        Clock.schedule_interval(self.update, 1/self.fps)
+        Clock.schedule_interval(self.update, 1 / self.fps)
         return layout
-
 
     def on_stop(self, *args):
         self.client.teardown()
         return True
 
-
     def setup_callback(self, button):
         self.client.setup()
         self.playing = False
-
 
     def play_callback(self, button):
         self.client.play()
         self.playing = True
 
-
     def pause_callback(self, button):
         self.client.pause()
         self.playing = False
 
-
     def teardown_callback(self, button):
         self.client.teardown()
         self.playing = False
-
 
     def update(self, dt):
         if not self.playing:
@@ -205,7 +186,7 @@ class ClientApp(App):
 
 if __name__ == "__main__":
     try:
-        serverIp = sys.argv[1]
+        ip = sys.argv[1]
         rtspPort = int(sys.argv[2])
         fileName = sys.argv[3]
     except:
