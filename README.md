@@ -1,3 +1,3 @@
 # NP Video streamer
 
-check README in folder for more information.
+check README in `src\` for how to run instructions.

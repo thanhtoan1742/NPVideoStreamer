@@ -1,21 +1,12 @@
 import pickle
 from typing import Tuple
 from math import floor, sqrt
-from threading import Thread, Lock
+from threading import Lock
 import cv2
 import numpy as np
-from kivy.graphics.texture import Texture
 from queue import PriorityQueue
 
 import Rtp
-
-
-
-def toTextureGrey(image: np.ndarray) -> Texture:
-    buffer = cv2.flip(image, 0).tostring()
-    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="luminance")
-    texture.blit_buffer(buffer, colorfmt="luminance", bufferfmt="ubyte")
-    return texture
 
 
 def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
@@ -25,32 +16,25 @@ def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
     # downscale
     h, w = image.shape
     sz = Rtp.PAYLOAD_SIZE
-    f = sqrt(sz / (h*w))
-    h = floor(h*f)
-    w = floor(w*f)
+    f = sqrt(sz / (h * w))
+    h = floor(h * f)
+    w = floor(w * f)
     image = cv2.resize(image, (w, h))
 
     return image
-
-
-
-def toTexture(image: np.ndarray) -> Texture:
-    buffer = cv2.flip(image, 0).tostring()
-    texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt="bgr")
-    texture.blit_buffer(buffer, colorfmt="bgr", bufferfmt="ubyte")
-    return texture
 
 
 def fitPayload(image: np.ndarray) -> np.ndarray:
     # downscale
     h, w, d = image.shape
     sz = Rtp.PAYLOAD_SIZE
-    f = sqrt(sz / (h*w*d))
-    h = floor(h*f)
-    w = floor(w*f)
+    f = sqrt(sz / (h * w * d))
+    h = floor(h * f)
+    w = floor(w * f)
     image = cv2.resize(image, (w, h))
 
     return image
+
 
 class VideoReader:
     def __init__(self, fileName: str) -> None:
@@ -73,6 +57,7 @@ class VideoAssembler:
     Assemble RTP packets to frames.
     This class assume there is no packet loss and all packets arrived in other.
     """
+
     def __init__(self) -> None:
         self.frameBuffer = []
         self.packetBuffer = PriorityQueue()
@@ -81,10 +66,12 @@ class VideoAssembler:
         self.packetCounter = 0
         self.currentBinFrame = b""
 
-
     def addPacket(self, packet: Rtp.Packet):
         self.packetBuffer.put(packet)
         # print(self.packetBuffer.queue[0])
+        # for p in self.packetBuffer.queue:
+        #     print(p, end=" ")
+        # print()
 
         while True:
             if self.packetBuffer.empty():
@@ -104,8 +91,6 @@ class VideoAssembler:
                 self.frameBuffer.append(frame)
                 self.frameBufferLock.release()
 
-
-
     def nextFrame(self) -> Tuple[bool, np.ndarray]:
         ok, frame = False, None
         self.frameBufferLock.acquire()
@@ -115,4 +100,3 @@ class VideoAssembler:
         self.frameBufferLock.release()
 
         return ok, frame
-

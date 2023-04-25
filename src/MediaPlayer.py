@@ -74,6 +74,7 @@ class MediaPlayer:
                 continue
             self._stream_()
 
+
     def _stream_(self) -> None:
         raise NotImplementedError
 
