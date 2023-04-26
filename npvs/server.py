@@ -1,8 +1,8 @@
 import socket
 from threading import Thread
 
-from common import *
-from ServerWorker import ServerWorker
+from npvs.common import *
+from npvs.server_worker import ServerWorker
 
 
 class Server:

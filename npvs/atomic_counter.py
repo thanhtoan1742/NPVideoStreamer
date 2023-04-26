@@ -17,7 +17,7 @@ class AtomicCounter:
         self.lock.release()
         return res
 
-    def getThenIncrement(self) -> int:
+    def get_then_increment(self) -> int:
         self.lock.acquire()
         res = self.counter
         self.counter += 1

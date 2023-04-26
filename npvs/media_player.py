@@ -1,6 +1,6 @@
 from threading import Event, Thread
 
-from common import *
+from npvs.common import *
 
 
 class MediaPlayer:

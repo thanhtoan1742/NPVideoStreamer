@@ -6,16 +6,16 @@ from typing import Tuple
 
 import cv2
 import numpy as np
-import Rtp
+from npvs import rtp
 
 
-def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
+def fit_payload_grey(image: np.ndarray) -> np.ndarray:
     # convert to gray
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # downscale
     h, w = image.shape
-    sz = Rtp.PAYLOAD_SIZE
+    sz = rtp.PAYLOAD_SIZE
     f = sqrt(sz / (h * w))
     h = floor(h * f)
     w = floor(w * f)
@@ -24,10 +24,10 @@ def fitPayloadGrey(image: np.ndarray) -> np.ndarray:
     return image
 
 
-def fitPayload(image: np.ndarray) -> np.ndarray:
+def fit_payload(image: np.ndarray) -> np.ndarray:
     # downscale
     h, w, d = image.shape
-    sz = Rtp.PAYLOAD_SIZE
+    sz = rtp.PAYLOAD_SIZE
     f = sqrt(sz / (h * w * d))
     h = floor(h * f)
     w = floor(w * f)
@@ -54,7 +54,7 @@ class VideoReader:
 
 class VideoAssembler:
     """
-    Assemble RTP packets to frames.
+    Assemble rtp packets to frames.
     This class assume there is no packet loss and all packets arrived in other.
     """
 
@@ -66,7 +66,7 @@ class VideoAssembler:
         self.packetCounter = 0
         self.currentBinFrame = b""
 
-    def addPacket(self, packet: Rtp.Packet):
+    def add_packet(self, packet: rtp.Packet):
         self.packetBuffer.put(packet)
 
         while True:
@@ -87,7 +87,7 @@ class VideoAssembler:
                 self.frameBuffer.append(frame)
                 self.frameBufferLock.release()
 
-    def nextFrame(self) -> Tuple[bool, np.ndarray]:
+    def next_frame(self) -> Tuple[bool, np.ndarray]:
         ok, frame = False, None
         self.frameBufferLock.acquire()
         if len(self.frameBuffer) > 0:

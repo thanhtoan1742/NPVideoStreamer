@@ -15,7 +15,7 @@ def split(s: str, delim: str) -> list[str]:
     return list(map(lambda x: x.strip(), s.strip(delim).split(delim)))
 
 
-def getLogger(name: str) -> logging.Logger:
+def get_logger(name: str) -> logging.Logger:
     formatter = logging.Formatter(
         fmt="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
         datefmt="%Y-%m-%d:%H:%M:%S",

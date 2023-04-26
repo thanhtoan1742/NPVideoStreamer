@@ -1,4 +1,4 @@
-from common import *
+from npvs.common import *
 
 PACKET_SIZE = 1 << 13
 HEADER_SIZE = (32 * 3) >> 3
@@ -12,32 +12,18 @@ class Packet:
         self.payload = payload
 
     def __eq__(self, o: object) -> bool:
-        return self.sequenceNumber() == o.sequenceNumber()
+        return self.sequence_number() == o.sequenceNumber()
 
     def __lt__(self, o: object) -> bool:
-        return self.sequenceNumber() < o.sequenceNumber()
+        return self.sequence_number() < o.sequenceNumber()
 
     def __str__(self) -> str:
-        return f"[{self.sequenceNumber()} {self.marker()}]"
+        return f"[{self.sequence_number()} {self.marker()}]"
         return (
             f"marker: {self.marker()}\n"
-            f"sequenceNumber: {self.sequenceNumber()}\n"
+            f"sequenceNumber: {self.sequence_number()}\n"
             f"timestamp: {self.timestamp()}\n"
         )  # f"payload: {self.payload}\n" \
-
-    def printAllAttribute(self) -> None:
-        s = (
-            f"version: {self.version()}\n"
-            f"padding: {self.padding()}\n"
-            f"extension: {self.extension()}\n"
-            f"marker: {self.marker()}\n"
-            f"payloadType: {self.payloadType()}\n"
-            f"sequenceNumber: {self.sequenceNumber()}\n"
-            f"timestamp: {self.timestamp()}\n"
-            f"ssrc: {self.ssrc()}\n"
-            f"payload: {self.payload}\n"
-        )
-        print(s)
 
     def encode(self) -> bytearray:
         """Return encoded RTP packet"""
@@ -59,12 +45,12 @@ class Packet:
         """Return RTP marker"""
         return int(self.header[1] >> 7) & 1
 
-    def payloadType(self) -> int:
+    def payload_type(self) -> int:
         """Return payload type."""
         pt = self.header[1] & 127
         return int(pt)
 
-    def sequenceNumber(self) -> int:
+    def sequence_number(self) -> int:
         """Return RTP sequence number"""
         seqNum = self.header[2] << 8 | self.header[3]
         return int(seqNum)
@@ -89,19 +75,15 @@ class Packet:
         )
         return int(timestamp)
 
-    def getPayload(self) -> int:
-        """Return RTP payload"""
-        return self.payload
-
-    def toDict(self) -> dict:
+    def to_dict(self) -> dict:
         return {
             "version": self.version(),
             # "padding": self.padding(),
             # "extension": self.extension(),
             # "csrcCount": self.csrcCount(),
             "marker": self.marker(),
-            "payloadType": self.payloadType(),
-            "sequenceNumber": self.sequenceNumber(),
+            "payloadType": self.payload_type(),
+            "sequenceNumber": self.sequence_number(),
             "timestamp": self.timestamp(),
             "ssrc": self.ssrc(),
             # "csrcList": p.csrcList(),
@@ -113,7 +95,7 @@ def decode(data: bytearray) -> Packet:
     return Packet(data[:HEADER_SIZE], data[HEADER_SIZE:])
 
 
-def packetFromDict(data: dict = {}) -> Packet:
+def packet_from_dict(data: dict = {}) -> Packet:
     header = bytearray(HEADER_SIZE)
 
     header[0] = (data["version"] << 6) & 0xFF

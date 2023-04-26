@@ -16,15 +16,15 @@ class Packet:
         self.header = len(payload) & 0xFFFF
         self.payload = payload
 
-    def payloadSize(self):
+    def payload_size(self):
         return self.header
 
     def encode(self):
         return self.header.to_bytes(HEADER_SIZE, "big") + self.payload + TERMINATOR
 
     def __str__(self):
-        return f"PS(payload_size={self.payloadSize()}, payload={str(self.payload)})"
+        return f"PS(payload_size={self.payload_size()}, payload={str(self.payload)})"
 
 
-def decodeHeader(header: bytes) -> int:
+def decode_header(header: bytes) -> int:
     return int.from_bytes(header, "big")

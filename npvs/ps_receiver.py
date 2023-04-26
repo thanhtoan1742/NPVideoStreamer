@@ -2,7 +2,7 @@ import logging
 import socket
 from threading import Lock, Thread
 
-import Ps
+from npvs import ps
 
 BUFFER_SIZE = 1 << 10
 
@@ -47,11 +47,11 @@ class PsReceiver:
             self.buffer += data
             self.bufferLock.release()
 
-    def nextPayload(self) -> bytes | None:
+    def next_payload(self) -> bytes | None:
         with self.bufferLock:
             if len(self.buffer) == 0:
                 return
-            self.currentSize = Ps.decodeHeader(self.buffer[0])
+            self.currentSize = ps.decode_header(self.buffer[0])
             self.buffer = self.buffer[1:]
 
             if len(self.buffer) < self.currentSize:
