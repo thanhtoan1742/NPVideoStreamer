@@ -1,12 +1,14 @@
-from random import randint
-import socket
 import pickle
+import socket
+from random import randint
 
+import Ps
+import Rtp
+import Rtsp
+from AtomicCounter import AtomicCounter
 from common import *
 from MediaPlayer import MediaPlayer
-from AtomicCounter import AtomicCounter
 from Video import VideoReader
-import Rtsp, Rtp, Ps
 
 
 class ServerWorker(MediaPlayer):

@@ -1,19 +1,23 @@
-import socket, sys
-from threading import Thread
+import socket
+import sys
 from queue import Queue
-import numpy as np
+from threading import Thread
+
 import cv2
+import numpy as np
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.image import Image
-from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.image import Image
 
+import Ps
+import Rtp
+import Rtsp
 from common import *
 from MediaPlayer import MediaPlayer
 from PsReceiver import PsReceiver
-import Rtsp, Rtp, Ps
 from Video import VideoAssembler
 
 

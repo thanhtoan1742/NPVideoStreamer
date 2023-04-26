@@ -1,9 +1,8 @@
-from threading import Lock, Thread
-import socket
 import logging
+import socket
+from threading import Lock, Thread
 
 import Ps
-
 
 BUFFER_SIZE = 1 << 10
 

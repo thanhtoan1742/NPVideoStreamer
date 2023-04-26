@@ -1,8 +1,10 @@
-import sys, socket
+import socket
+import sys
 from threading import Thread
 
 from common import *
 from ServerWorker import ServerWorker
+
 
 class Server:
     def __init__(self, Ip, rtspPort) -> None:
@@ -35,5 +37,3 @@ if __name__ == "__main__":
 
     app = Server("", rtspPort)
     app.run()
-
-

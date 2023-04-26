@@ -1,10 +1,11 @@
 import pickle
-from typing import Tuple
 from math import floor, sqrt
+from queue import PriorityQueue
 from threading import Lock
+from typing import Tuple
+
 import cv2
 import numpy as np
-from queue import PriorityQueue
 
 import Rtp
 
@@ -68,10 +69,6 @@ class VideoAssembler:
 
     def addPacket(self, packet: Rtp.Packet):
         self.packetBuffer.put(packet)
-        # print(self.packetBuffer.queue[0])
-        # for p in self.packetBuffer.queue:
-        #     print(p, end=" ")
-        # print()
 
         while True:
             if self.packetBuffer.empty():

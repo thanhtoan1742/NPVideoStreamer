@@ -1,8 +1,11 @@
-from common import *
 from threading import Event, Thread
+
+from common import *
+
 
 class MediaPlayer:
     """Player class manage state of a media player"""
+
     INIT = 0
     READY = 1
     PLAYING = 2
@@ -39,7 +42,6 @@ class MediaPlayer:
         self.state = self.PLAYING
         return True
 
-
     def pause(self) -> bool:
         if self.state != self.PLAYING:
             return False
@@ -73,7 +75,6 @@ class MediaPlayer:
             if not self.playingFlag.is_set():
                 continue
             self._stream_()
-
 
     def _stream_(self) -> None:
         raise NotImplementedError
