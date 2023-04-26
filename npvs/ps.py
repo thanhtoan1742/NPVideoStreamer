@@ -5,10 +5,11 @@ decrete packets.
 
 Header: 2 bytes, length of payload + 1
 Payload
-Terminator: 1 bytes, value = 1101 0011
+Terminator: 1 bytes, value = 0xED
 """
 HEADER_SIZE = 2
-TERMINATOR = (0b11010011).to_bytes(1, "big")
+TERMINATOR = (0xED).to_bytes(1, "big")
+PAYLOAD_MAX_SIZE = (1 << 14) - HEADER_SIZE - 1
 
 
 class Packet:
