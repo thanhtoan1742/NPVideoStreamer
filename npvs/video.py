@@ -6,6 +6,7 @@ from typing import Tuple
 
 import cv2
 import numpy as np
+
 from npvs import rtp
 
 
@@ -37,15 +38,15 @@ def fit_payload(image: np.ndarray) -> np.ndarray:
 
 
 class VideoReader:
-    def __init__(self, fileName: str) -> None:
-        self.fileName = fileName
-        self.videoCapture = cv2.VideoCapture(fileName)
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+        self.video_capture = cv2.VideoCapture(filename)
 
     def __del__(self) -> None:
-        self.videoCapture.release()
+        self.video_capture.release()
 
-    def nextFrame(self):
-        ok, frame = self.videoCapture.read()
+    def next_frame(self):
+        ok, frame = self.video_capture.read()
         if not ok:
             return False, None
 
@@ -59,40 +60,40 @@ class VideoAssembler:
     """
 
     def __init__(self) -> None:
-        self.frameBuffer = []
-        self.packetBuffer = PriorityQueue()
-        self.frameBufferLock = Lock()
+        self.frame_buffer = []
+        self.packet_buffer = PriorityQueue()
+        self.frame_buffer_lock = Lock()
 
-        self.packetCounter = 0
-        self.currentBinFrame = b""
+        self.packet_counter = 0
+        self.current_bin_frame = b""
 
     def add_packet(self, packet: rtp.Packet):
-        self.packetBuffer.put(packet)
+        self.packet_buffer.put(packet)
 
         while True:
-            if self.packetBuffer.empty():
+            if self.packet_buffer.empty():
                 break
 
-            if self.packetBuffer.queue[0].sequenceNumber() != self.packetCounter:
+            if self.packet_buffer.queue[0].sequenceNumber() != self.packet_counter:
                 break
 
-            p = self.packetBuffer.get()
-            self.packetCounter += 1
-            self.currentBinFrame += p.payload
+            p = self.packet_buffer.get()
+            self.packet_counter += 1
+            self.current_bin_frame += p.payload
 
             if p.marker():
-                frame = pickle.loads(self.currentBinFrame)
-                self.currentBinFrame = b""
-                self.frameBufferLock.acquire()
-                self.frameBuffer.append(frame)
-                self.frameBufferLock.release()
+                frame = pickle.loads(self.current_bin_frame)
+                self.current_bin_frame = b""
+                self.frame_buffer_lock.acquire()
+                self.frame_buffer.append(frame)
+                self.frame_buffer_lock.release()
 
     def next_frame(self) -> Tuple[bool, np.ndarray]:
         ok, frame = False, None
-        self.frameBufferLock.acquire()
-        if len(self.frameBuffer) > 0:
+        self.frame_buffer_lock.acquire()
+        if len(self.frame_buffer) > 0:
             ok = True
-            frame = self.frameBuffer.pop(0)
-        self.frameBufferLock.release()
+            frame = self.frame_buffer.pop(0)
+        self.frame_buffer_lock.release()
 
         return ok, frame

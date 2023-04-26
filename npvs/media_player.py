@@ -12,9 +12,9 @@ class MediaPlayer:
 
     def __init__(self) -> None:
         self.state = self.INIT
-        self.playingFlag = Event()
-        self.streamingFlag = Event()
-        self.streamThread: Thread = None
+        self.playing_flag = Event()
+        self.streaming_flag = Event()
+        self.stream_thread: Thread = None
         self.fps = 60
 
     def setup(self) -> bool:
@@ -24,10 +24,10 @@ class MediaPlayer:
         if not self._setup_():
             return False
 
-        self.streamingFlag.set()
-        self.playingFlag.clear()
-        self.streamThread = Thread(target=self.stream)
-        self.streamThread.start()
+        self.streaming_flag.set()
+        self.playing_flag.clear()
+        self.stream_thread = Thread(target=self.stream)
+        self.stream_thread.start()
         self.state = self.READY
         return True
 
@@ -38,7 +38,7 @@ class MediaPlayer:
         if not self._play_():
             return False
 
-        self.playingFlag.set()
+        self.playing_flag.set()
         self.state = self.PLAYING
         return True
 
@@ -49,7 +49,7 @@ class MediaPlayer:
         if not self._pause_():
             return False
 
-        self.playingFlag.clear()
+        self.playing_flag.clear()
         self.state = self.READY
 
         return True
@@ -64,15 +64,15 @@ class MediaPlayer:
         if not self._teardown_():
             return False
 
-        self.playingFlag.clear()
-        self.streamingFlag.clear()
-        self.streamThread.join()
+        self.playing_flag.clear()
+        self.streaming_flag.clear()
+        self.stream_thread.join()
         self.state = self.INIT
         return True
 
     def stream(self) -> None:
-        while self.streamingFlag.is_set():
-            if not self.playingFlag.is_set():
+        while self.streaming_flag.is_set():
+            if not self.playing_flag.is_set():
                 continue
             self._stream_()
 

@@ -16,17 +16,17 @@ class PsReceiver:
         self.socket.connect((self.ip, self.port))
         self.port = int(self.socket.getsockname()[1])
 
-        self.bufferLock = Lock()
+        self.buffer_lock = Lock()
         self.buffer = bytearray
-        self.currentSize = None
+        self.current_size = None
 
-        self.recvThread = Thread(target=self._receive_)
-        self.recvThread.start()
+        self.recv_thread = Thread(target=self._receive_)
+        self.recv_thread.start()
 
     def __del__(self) -> None:
-        self.recvThread.join()
+        self.recv_thread.join()
         self.socket.close()
-        self.bufferLock.release()
+        self.buffer_lock.release()
 
     def _receive_(self) -> None:
         while True:
@@ -43,22 +43,22 @@ class PsReceiver:
                 )
                 raise e
 
-            self.bufferLock.acquire()
+            self.buffer_lock.acquire()
             self.buffer += data
-            self.bufferLock.release()
+            self.buffer_lock.release()
 
     def next_payload(self) -> bytes | None:
-        with self.bufferLock:
+        with self.buffer_lock:
             if len(self.buffer) == 0:
                 return
-            self.currentSize = ps.decode_header(self.buffer[0])
+            self.current_size = ps.decode_header(self.buffer[0])
             self.buffer = self.buffer[1:]
 
-            if len(self.buffer) < self.currentSize:
+            if len(self.buffer) < self.current_size:
                 return
 
-            payload = self.buffer[self.currentSize]
-            self.buffer = self.buffer[self.currentSize :]
-            self.currentSize = None
+            payload = self.buffer[self.current_size]
+            self.buffer = self.buffer[self.current_size :]
+            self.current_size = None
 
             return payload

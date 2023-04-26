@@ -30,7 +30,7 @@ def toTextureGrey(image: np.ndarray) -> Texture:
 
 class ClientApp(App):
     def build(self):
-        self.client = npvs.Client(ip, rtspPort, fileName)
+        self.client = npvs.client.Client(ip, rtspPort, fileName)
         self.fps = 60
         self.playing = False
 
