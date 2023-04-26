@@ -1,5 +1,4 @@
 import socket
-import sys
 from threading import Thread
 
 from common import *
@@ -27,13 +26,3 @@ class Server:
             worker = ServerWorker(clientSocket, clientIp, clientPort)
             workers.append(worker)
             Thread(target=worker.run).start()
-
-
-if __name__ == "__main__":
-    try:
-        rtspPort = int(sys.argv[1])
-    except:
-        print("Usage: python Server.py rtspPort\n")
-
-    app = Server("", rtspPort)
-    app.run()
