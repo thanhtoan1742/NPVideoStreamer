@@ -6,3 +6,4 @@ src/__pycache__/
 videos/
 data/
 **/*.log
+**/*.bin
