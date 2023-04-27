@@ -3,8 +3,9 @@ import socket
 from threading import Lock, Thread
 
 from npvs import ps
+from npvs.dumper import Dumper
 
-BUFFER_SIZE = 1 << 10
+BUFFER_SIZE = 1 << 14
 
 
 class PsReceiver:
@@ -22,6 +23,8 @@ class PsReceiver:
         self.buffer = bytearray()
         self.current_size = None
 
+        # self.dumper = Dumper("client-data.bin")
+
         self.recv_thread = Thread(target=self._receive_)
         self.recv_thread.start()
 
@@ -29,24 +32,25 @@ class PsReceiver:
         self.recv_thread.join()
 
     def _receive_(self) -> None:
-        self.socket.settimeout(0.5)
+        self.socket.settimeout(5)
         while True:
             try:
                 data = self.socket.recv(BUFFER_SIZE)
                 if not data:
                     self.logger.info("TCP session done")
                     return
+                self.logger.debug("received data, data size = %s", len(data))
+                with self.lock:
+                    self.buffer += data
+                # self.dumper.append(data)
             except socket.timeout as e:
-                self.logger.warning("timed out when waiting for incoming packet")
+                # self.logger.warning("timed out when waiting for incoming packet")
+                pass
             except Exception as e:
                 self.logger.error(
                     "exception when waiting for incomming packet, e = %s", str(e)
                 )
                 raise e
-
-            self.logger.info("received data, data size = %s", len(data))
-            with self.lock:
-                self.buffer += data
 
     def is_done(self) -> bool:
         with self.lock:
@@ -59,17 +63,21 @@ class PsReceiver:
             return
 
         with self.lock:
-            if len(self.buffer) == 0:
-                return
-            self.current_size = ps.decode_header(self.buffer[:2])
-            self.buffer = self.buffer[2:]
-            self.logger.info("decode buffer, size = %s", self.current_size)
+            if self.current_size == None:
+                if len(self.buffer) < 2:
+                    return
+                self.current_size = ps.decode_header(self.buffer[:2])
+                self.buffer = self.buffer[2:]
 
             if len(self.buffer) < self.current_size + 1:
                 return
 
+            self.logger.debug(
+                "decode buffer, payload size = %s, buffer size = %s",
+                self.current_size,
+                len(self.buffer),
+            )
             payload = self.buffer[: self.current_size]
-            self.logger.info("decode buffer, payload = %s", self.current_size)
             terminator = self.buffer[self.current_size]
             self.buffer = self.buffer[self.current_size + 1 :]
             self.current_size = None
