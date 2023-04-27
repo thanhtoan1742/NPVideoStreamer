@@ -6,6 +6,11 @@ from npvs.server_worker import ServerWorker
 
 
 class Server:
+    """
+    Listen to incomming connection from clients.
+    For each client, create new worker to serve that client.
+    """
+
     def __init__(self, ip: str, port: int) -> None:
         self.ip = ip
         self.port = port
@@ -18,7 +23,7 @@ class Server:
         self.socket.close()
 
     def run(self) -> None:
-        # Receive client info (address,port) through RTSP/TCP session
+        # TODO: add proper termination mechanism
         workers = []
         while True:
             client_socket, (client_ip, client_port) = self.socket.accept()

@@ -3,44 +3,40 @@ import socket
 from random import randint
 
 from npvs import ps, rtp, rtsp
-from npvs.atomic_counter import AtomicCounter
 from npvs.common import *
 from npvs.media_player import MediaPlayer
+from npvs.ps_receiver import PsReceiver
 from npvs.video import VideoReader
 
 
 class ServerWorker(MediaPlayer):
-    def __init__(self, rtsp_socket: socket.socket, ip: str, rtsp_port: int) -> None:
+    def __init__(
+        self, rtsp_socket: socket.socket, client_ip: str, client_rtsp_port: int
+    ) -> None:
         super().__init__()
+        self.logger = get_logger("server-worker")
 
         self.rtp_socket = rtsp_socket
-        self.ip = ip
-        self.rtsp_port = rtsp_port
-
-        self.session = 0
-
-        self.video_reader: VideoReader = None
-        self.frame_counter = AtomicCounter()
-
-        self.client_rtp_port = 0
-        self.rtp_socket = None
-        self.rtp_sequence_number = AtomicCounter()
-
+        self.client_ip = client_ip
+        self.client_rtsp_port = client_rtsp_port
+        self.rtsp_session = 0
         self.request = None
 
-        self.logger = get_logger("server-worker")
+        self.rtp_socket: socket.socket = None
+        self.client_rtp_port = 0
+        self.rtp_sequence_number = 0
+
+        self.video_reader: VideoReader = None
 
     def __del__(self) -> None:
         pass
 
-    def send_RTSP_respond(
-        self, statusCode: rtsp.StatusCode, isSetup: bool = False
-    ) -> None:
-        """Send rtsp reply to the client."""
-        respond = {"statusCode": statusCode, "CSeq": self.request["CSeq"]}
-        if statusCode == rtsp.StatusCode.OK:
-            respond["session"] = self.session
-        message = rtsp.create_response(respond)
+    def send_RTSP_response(self, status_code: rtsp.StatusCode) -> None:
+        """Send RTSP response to the client."""
+        response = {"statusCode": status_code, "CSeq": self.request["CSeq"]}
+        if status_code == rtsp.StatusCode.OK:
+            response["session"] = self.rtsp_session
+        message = rtsp.create_response(response)
 
         self.rtp_socket.send(message.encode())
 
@@ -65,28 +61,27 @@ class ServerWorker(MediaPlayer):
             self.video_reader = VideoReader(self.request["fileName"])
             self.state = self.READY
         except IOError:
-            self.send_RTSP_respond(rtsp.StatusCode.FILE_NOT_FOUND)
+            self.send_RTSP_response(rtsp.StatusCode.FILE_NOT_FOUND)
             return False
 
-        self.session = randint(100000, 999999)
+        self.rtsp_session = randint(100000, 999999)
         self.client_rtp_port = self.request["clientPort"]
-        self.rtp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.rtp_socket.connect((self.ip, self.client_rtp_port))
+        self.ps_receiver = PsReceiver(self.client_ip, self.client_rtp_port, self.logger)
 
-        self.send_RTSP_respond(rtsp.StatusCode.OK, isSetup=True)
+        self.send_RTSP_response(rtsp.StatusCode.OK, is_setup=True)
         return True
 
     def _play_(self) -> bool:
-        self.send_RTSP_respond(rtsp.StatusCode.OK)
+        self.send_RTSP_response(rtsp.StatusCode.OK)
         return True
 
     def _pause_(self) -> bool:
-        self.send_RTSP_respond(rtsp.StatusCode.OK)
+        self.send_RTSP_response(rtsp.StatusCode.OK)
         return True
 
     def _teardown_(self) -> bool:
         self.rtp_socket.close()
-        self.send_RTSP_respond(rtsp.StatusCode.OK)
+        self.send_RTSP_response(rtsp.StatusCode.OK)
         return True
 
     def _stream_(self) -> None:
@@ -94,7 +89,7 @@ class ServerWorker(MediaPlayer):
         if not ok:
             return
 
-        binFrame = pickle.dumps(frame)
+        bin_frame = pickle.dumps(frame)
         data = {
             "version": 2,
             # "padding": 0, # does not support padding, defaults to 0
@@ -102,26 +97,25 @@ class ServerWorker(MediaPlayer):
             # "csrcCount": 0, # does not support other than 0
             # "marker": 0,
             "payloadType": 26,  # MJPEG type
-            "timestamp": self.frame_counter.get_then_increment(),
+            "timestamp": self.video_reader.frame_counter - 1,
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
             # "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
             # "payload": pickle.dumps(fitPayload(frame))
         }
 
-        sz = rtp.PAYLOAD_SIZE
         i = 0
-        while i < len(binFrame):
-            j = min(i + sz, len(binFrame))
-            data["payload"] = binFrame[i:j]
-            data["sequenceNumber"] = self.rtp_sequence_number.get_then_increment()
-            data["marker"] = j == len(binFrame)
-            rtpPacket = rtp.packet_from_dict(data)
-            p = ps.Packet(rtpPacket.encode())
-            self.rtp_socket.sendall(p.encode())
-            self.logger.info(
-                "sent packet size: %s, packet: ", str(p.payload_size()), str(rtpPacket)
-            )
+        while i < len(bin_frame):
+            j = min(i + ps.PAYLOAD_MAX_SIZE, len(bin_frame))
+
+            data["payload"] = bin_frame[i:j]
+            data["marker"] = j == len(bin_frame)
+            data["sequenceNumber"] = self.rtp_sequence_number
+            self.rtp_sequence_number += 1
+
+            packet = ps.Packet(rtp.packet_from_dict(data).encode())
+            self.rtp_socket.sendall(packet.encode())
+            self.logger.info("sent packet size: %s", str(packet.payload_size()))
 
             i = j
 
