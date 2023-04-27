@@ -1,3 +1,7 @@
+import os
+
+os.environ["KIVY_NO_CONSOLELOG"] = "1"
+
 import sys
 
 import cv2
@@ -9,7 +13,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.image import Image
 
-import npvs
+from npvs.client import Client
+from npvs.common import get_logger
 
 
 def toTexture(image: np.ndarray) -> Texture:
@@ -30,7 +35,11 @@ def toTextureGrey(image: np.ndarray) -> Texture:
 
 class ClientApp(App):
     def build(self):
-        self.client = npvs.client.Client(ip, rtspPort, fileName)
+        self.logger = get_logger("client-app")
+        self.logger.info(
+            "starting app with following arguments: (%s, %s) %s", ip, rtspPort, fileName
+        )
+        self.client = Client(ip, rtspPort, fileName)
         self.fps = 60
         self.playing = False
 
@@ -84,11 +93,12 @@ class ClientApp(App):
         if not self.playing:
             return
 
-        ok, frame = self.client.nextFrame()
+        ok, frame = self.client.next_frame()
         if not ok:
-            print("missed frame")
+            self.logger.info("missed frame")
             return
 
+        self.logger.info("got frame")
         self.image.texture = toTexture(frame)
 
 

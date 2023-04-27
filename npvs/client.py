@@ -13,6 +13,9 @@ class Client(MediaPlayer):
         super().__init__()
 
         self.logger = get_logger("client")
+        self.logger.info(
+            "client created, connecting to RTSP(%s, %s)", server_ip, server_rtsp_port
+        )
 
         self.filename = filename
 
@@ -21,7 +24,8 @@ class Client(MediaPlayer):
         self.rtsp_cseq = 0
         self.rtsp_session = -1
         self.rtsp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.rtspSocket.connect((self.server_ip, self.server_rtsp_port))
+        self.rtsp_socket.connect((self.server_ip, self.server_rtsp_port))
+        self.logger.info("connected to RTSP(%s, %s)", server_ip, server_rtsp_port)
 
         self.video_assembler = VideoAssembler()
 
@@ -32,6 +36,7 @@ class Client(MediaPlayer):
     def __del__(self) -> None:
         self.teardown()
         self.rtsp_socket.close()
+        self.logger.info("client done")
 
     def send_RTSP_request(self, method: rtsp.Method) -> bool:
         self.rtsp_cseq += 1

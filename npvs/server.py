@@ -12,6 +12,7 @@ class Server:
     """
 
     def __init__(self, ip: str, port: int) -> None:
+        self.logger = get_logger("server")
         self.ip = ip
         self.port = port
 
@@ -27,6 +28,7 @@ class Server:
         workers = []
         while True:
             client_socket, (client_ip, client_port) = self.socket.accept()
+            self.logger.info("Accepted connection (%s, %s)", client_ip, client_port)
 
             worker = ServerWorker(client_socket, client_ip, client_port)
             workers.append(worker)

@@ -24,11 +24,15 @@ def get_logger(name: str) -> logging.Logger:
         logger = logging.getLogger(name)
         logger.addHandler(handler)
     else:
-        handler = logging.FileHandler(name + ".log", "w")
-        handler.setFormatter(formatter)
+        file_handler = logging.FileHandler(name + ".log", "w")
+        file_handler.setFormatter(formatter)
+
+        stream_handler = logging.StreamHandler()
+
         logger = logging.getLogger(name)
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+        logger.addHandler(stream_handler)
+        logger.setLevel(logging.WARNING)
 
     requested_logger[name] = logger
     return logger

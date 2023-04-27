@@ -8,5 +8,5 @@ if __name__ == "__main__":
     except:
         print("Usage: python Server.py rtspPort\n")
 
-    app = Server("", port)
+    app = Server("127.0.0.1", port)
     app.run()
