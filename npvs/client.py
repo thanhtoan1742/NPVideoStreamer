@@ -50,12 +50,12 @@ class Client(MediaPlayer):
         self.logger.info("sent message = %s", json.dumps(request, indent=2))
 
         message = self.rtsp_socket.recv(rtsp.RTSP_MESSAGE_SIZE).decode()
-        self.respond = rtsp.parse_response(message)
-        if self.respond["statusCode"] > 299:
+        self.response = rtsp.parse_response(message)
+        if self.response["statusCode"] > 299:
             self.logger.error(
-                "server responded, status code = %s,\nreponsed = %s",
-                self.respond["statusCode"],
-                json.dumps(self.respond, indent=2),
+                "server responsed, status code = %s,\nreponse = %s",
+                self.response["statusCode"],
+                json.dumps(self.response, indent=2),
             )
             return False
 
@@ -73,7 +73,7 @@ class Client(MediaPlayer):
             s.close()
             return False
 
-        self.rtsp_session = self.respond["session"]
+        self.rtsp_session = self.response["session"]
         self.rtp_socket, _ = s.accept()
         self.ps_receiver = PsReceiver(self.rtp_socket, self.logger)
 
