@@ -7,9 +7,10 @@ Header: 2 bytes, length of payload + 1
 Payload
 Terminator: 1 bytes, value = 0xED
 """
+PACKET_MAX_SIZE = 1 << 14
 HEADER_SIZE = 2
 TERMINATOR: int = 0xED
-PAYLOAD_MAX_SIZE = (1 << 14) - HEADER_SIZE - 1
+PAYLOAD_MAX_SIZE = PACKET_MAX_SIZE - HEADER_SIZE - 1
 
 
 class Packet:
