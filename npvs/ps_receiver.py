@@ -8,16 +8,18 @@ BUFFER_SIZE = 1 << 10
 
 
 class PsReceiver:
-    def __init__(self, ip: str, logger: logging.Logger) -> None:
-        self.ip = ip
+    """
+    PsReceiver take an socking that is listening to incomming PS packets,
+    read incomming PS packets, parse them, check them and yeaid payload of those
+    packets.
+    """
+
+    def __init__(self, socket: socket.socket, logger: logging.Logger) -> None:
+        self.socket = socket
         self.logger = logger
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.ip, self.port))
-        self.port = int(self.socket.getsockname()[1])
-
-        self.buffer_lock = Lock()
-        self.buffer = bytearray
+        self.lock = Lock()
+        self.buffer = bytearray()
         self.current_size = None
 
         self.recv_thread = Thread(target=self._receive_)
@@ -25,10 +27,9 @@ class PsReceiver:
 
     def __del__(self) -> None:
         self.recv_thread.join()
-        self.socket.close()
-        self.buffer_lock.release()
 
     def _receive_(self) -> None:
+        self.socket.settimeout(0.5)
         while True:
             try:
                 data = self.socket.recv(BUFFER_SIZE)
@@ -43,22 +44,39 @@ class PsReceiver:
                 )
                 raise e
 
-            self.buffer_lock.acquire()
-            self.buffer += data
-            self.buffer_lock.release()
+            self.logger.info("received data, data size = %s", len(data))
+            with self.lock:
+                self.buffer += data
+
+    def is_done(self) -> bool:
+        with self.lock:
+            if len(self.buffer) > 0:
+                return False
+        return not self.recv_thread.is_alive()
 
     def next_payload(self) -> bytes | None:
-        with self.buffer_lock:
+        if self.is_done():
+            return
+
+        with self.lock:
             if len(self.buffer) == 0:
                 return
-            self.current_size = ps.decode_header(self.buffer[0])
-            self.buffer = self.buffer[1:]
+            self.current_size = ps.decode_header(self.buffer[:2])
+            self.buffer = self.buffer[2:]
+            self.logger.info("decode buffer, size = %s", self.current_size)
 
-            if len(self.buffer) < self.current_size:
+            if len(self.buffer) < self.current_size + 1:
                 return
 
-            payload = self.buffer[self.current_size]
-            self.buffer = self.buffer[self.current_size :]
+            payload = self.buffer[: self.current_size]
+            self.logger.info("decode buffer, payload = %s", self.current_size)
+            terminator = self.buffer[self.current_size]
+            self.buffer = self.buffer[self.current_size + 1 :]
             self.current_size = None
+
+            if terminator != ps.TERMINATOR:
+                e = ps.WrongTerminatorException(terminator)
+                self.logger.error(str(e))
+                raise e
 
             return payload
