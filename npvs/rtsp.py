@@ -1,7 +1,7 @@
-from common import *
-
+from npvs.common import *
 
 RTSP_MESSAGE_SIZE = 1 << 10
+
 
 class Method:
     SETUP = "SETUP"
@@ -18,11 +18,11 @@ class StatusCode:
     DESCRIPTION = {
         OK: "OK",
         FILE_NOT_FOUND: "FILE_NOT_FOUND",
-        CONNECTION_ERROR: "CONNECTION_ERROR"
+        CONNECTION_ERROR: "CONNECTION_ERROR",
     }
 
 
-def createRequest(request: dict) -> str:
+def create_request(request: dict) -> str:
     """
     method, filName, CSeq fields are required for all method.
     Some methods may required additional fields.
@@ -40,9 +40,9 @@ def createRequest(request: dict) -> str:
     return message.strip()
 
 
-def parseRequest(message: str) -> dict:
+def parse_request(message: str) -> dict:
     request = {}
-    lines = message.split('\n')
+    lines = message.split("\n")
 
     # format example
     # SETUP a.mp4 RTSP/1.0
@@ -54,7 +54,6 @@ def parseRequest(message: str) -> dict:
     # CSeq: 12
     line = split(lines[1], ":")
     request["CSeq"] = int(line[1])
-
 
     # format example
     # transport: RTP/UDP; clientPort=1200;
@@ -77,7 +76,7 @@ def parseRequest(message: str) -> dict:
     return request
 
 
-def createRespond(respond: dict) -> str:
+def create_response(respond: dict) -> str:
     """
     statusCode fields are required.
     Attributes: statusCode, CSeq, session, clientPort, serverPort.
@@ -99,9 +98,9 @@ def createRespond(respond: dict) -> str:
     return message.strip()
 
 
-def parseRespond(message: str) -> dict:
+def parse_response(message: str) -> dict:
     respond = {}
-    lines = message.split('\n')
+    lines = message.split("\n")
 
     # format example
     # RTSP/1.0 200 OK
