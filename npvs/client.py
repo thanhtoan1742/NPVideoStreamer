@@ -1,5 +1,5 @@
-import socket
 import json
+import socket
 
 from npvs import rtp, rtsp
 from npvs.common import *

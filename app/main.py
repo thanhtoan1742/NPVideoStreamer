@@ -1,8 +1,9 @@
-from npvs import ps
-from npvs.ps_receiver import PsReceiver, BUFFER_SIZE
-from npvs.common import get_logger
-from unittest.mock import Mock
 import time
+from unittest.mock import Mock
+
+from npvs import ps
+from npvs.common import get_logger
+from npvs.ps_receiver import BUFFER_SIZE, PsReceiver
 
 with open("server-data.bin", "rb") as f:
     sd = f.read()
