@@ -1,6 +1,6 @@
 import pickle
 from queue import PriorityQueue
-from threading import Lock
+from multiprocessing import Lock
 from typing import Tuple
 
 import cv2
@@ -12,13 +12,18 @@ from npvs import rtp
 class VideoReader:
     def __init__(self, filename: str) -> None:
         self.filename = filename
-        self.video_capture = cv2.VideoCapture(filename)
+        # do not initialize now to advoid cv2 bug on multiprocess
+        # https://github.com/opencv/opencv/issues/5150
+        self.video_capture = None
         self.frame_counter = 0
 
     def __del__(self) -> None:
-        self.video_capture.release()
+        if self.video_capture != None:
+            self.video_capture.release()
 
     def next_frame(self):
+        if self.video_capture == None:
+            self.video_capture = cv2.VideoCapture(self.filename)
         ok, frame = self.video_capture.read()
         if not ok:
             return False, None
