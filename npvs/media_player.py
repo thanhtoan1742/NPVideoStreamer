@@ -74,7 +74,10 @@ class MediaPlayer:
         while self.streaming_flag.is_set():
             if not self.playing_flag.is_set():
                 continue
-            self._stream_()
+            try:
+                self._stream_()
+            except:
+                return
 
     def _stream_(self) -> None:
         raise NotImplementedError

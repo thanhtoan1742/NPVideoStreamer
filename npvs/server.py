@@ -18,18 +18,23 @@ class Server:
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.ip, self.port))
-        self.socket.listen(5)
+        self.socket.listen(1)
+
+        self.worker_threads = []
 
     def __del__(self) -> None:
         self.socket.close()
+        for thread in self.worker_threads:
+            thread.join()
 
     def run(self) -> None:
         # TODO: add proper termination mechanism
-        workers = []
         while True:
             client_socket, (client_ip, client_port) = self.socket.accept()
             self.logger.info("Accepted connection (%s, %s)", client_ip, client_port)
 
             worker = ServerWorker(client_socket, client_ip, client_port)
-            workers.append(worker)
-            Thread(target=worker.run).start()
+            thread = Thread(target=worker.run)
+            thread.start()
+            self.worker_threads.append(thread)
+            break
