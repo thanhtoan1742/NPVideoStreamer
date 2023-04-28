@@ -1,41 +1,32 @@
+from npvs.client import Client
+from npvs.server import Server
 import time
-from unittest.mock import Mock
-
-from npvs import ps
-from npvs.common import get_logger
-from npvs.ps_receiver import BUFFER_SIZE, PsReceiver
-
-with open("server-data.bin", "rb") as f:
-    sd = f.read()
-
-with open("client-data.bin", "rb") as f:
-    cd = f.read()
+import yappi
 
 
-def make_socket(data):
-    cur = 0
+yappi.start()
+client = Client("127.0.0.1", 1200, "data/yeah_baby.mp4")
+client.setup()
 
-    def recv(*args):
-        nonlocal cur, data
-        if cur >= len(data):
-            return None
-        nex = min(cur + BUFFER_SIZE, len(data))
-        res = data[cur:nex]
-        cur = nex
-        return res
+cnt = 0
+client.play()
 
-    socket = Mock()
-    socket.recv.side_effect = recv
-
-    return socket
-
-
-receiver = PsReceiver(make_socket(cd), get_logger("main"))
-while True:
-    if receiver.is_done():
-        break
-    payload = receiver.next_payload()
-    if payload:
-        print(len(payload))
+while not client.ps_receiver.is_done():
+    ok, frame = client.next_frame()
+    if ok:
+        cnt += 1
+        print(cnt, frame.shape)
+        if cnt > 20:
+            break
     else:
-        print(None)
+        time.sleep(1)
+
+
+client.teardown()
+yappi.stop()
+
+thread_stats = yappi.get_thread_stats()
+thread_stats.print_all()
+for thread_stat in thread_stats:
+    print("\n\nfunc stats for thread %s (%d)" % (thread_stat.name, thread_stat.id))
+    yappi.get_func_stats(ctx_id=thread_stat.id).print_all()
