@@ -3,6 +3,7 @@ import pickle
 import socket
 from random import randint
 
+
 from npvs import ps, rtp, rtsp
 from npvs.common import *
 from npvs.dumper import Dumper
@@ -21,7 +22,7 @@ class ServerWorker(MediaPlayer):
             "server worker created, serving (%s, %s)", client_ip, client_rtsp_port
         )
 
-        self.rstp_socket = rtsp_socket
+        self.rtsp_socket = rtsp_socket
         self.client_ip = client_ip
         self.client_rtsp_port = client_rtsp_port
         self.rtsp_session = 0
@@ -36,7 +37,7 @@ class ServerWorker(MediaPlayer):
         # self.dumper = Dumper("server-data.bin")
 
     def __del__(self) -> None:
-        self.rstp_socket.close()
+        self.rtsp_socket.close()
 
     def send_RTSP_response(self, status_code: rtsp.StatusCode) -> None:
         """Send RTSP response to the client."""
@@ -45,7 +46,7 @@ class ServerWorker(MediaPlayer):
             response["session"] = self.rtsp_session
         message = rtsp.create_response(response)
 
-        self.rstp_socket.send(message.encode())
+        self.rtsp_socket.send(message.encode())
         self.logger.info("sent RTPS message = %s", json.dumps(response, indent=2))
 
     def process_RTSP_request(self, message: str) -> None:
@@ -135,7 +136,13 @@ class ServerWorker(MediaPlayer):
             self.rtp_sequence_number += 1
 
             packet = ps.Packet(rtp.packet_from_dict(data).encode())
-            self.rtp_socket.sendall(packet.encode())
+
+            try:
+                self.rtp_socket.sendall(packet.encode())
+            except Exception as e:
+                self.logger.error("Expcetion when try to send RTP data, e = %s", str(e))
+                raise e
+
             self.logger.debug(
                 "sent ps packet with payload size: %s", str(packet.payload_size())
             )
@@ -145,10 +152,9 @@ class ServerWorker(MediaPlayer):
 
     def run(self) -> None:
         while True:
-            message = self.rstp_socket.recv(rtsp.RTSP_MESSAGE_SIZE)
+            message = self.rtsp_socket.recv(rtsp.RTSP_MESSAGE_SIZE)
             if not message:
                 break
             self.process_RTSP_request(message.decode())
 
         self.teardown()
-        self.rstp_socket.close()
