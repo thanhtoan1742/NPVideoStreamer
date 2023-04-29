@@ -32,7 +32,7 @@ def get_logger(name: str) -> logging.Logger:
         logger = logging.getLogger(name)
         logger.addHandler(file_handler)
         logger.addHandler(stream_handler)
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.INFO)
 
     requested_logger[name] = logger
     return logger

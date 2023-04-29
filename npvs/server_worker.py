@@ -1,14 +1,14 @@
+import cProfile
 import json
 import pickle
+import pstats
 import socket
 from random import randint
-
 
 from npvs import ps, rtp, rtsp
 from npvs.common import *
 from npvs.dumper import Dumper
 from npvs.media_player import MediaPlayer
-from npvs.ps_receiver import PsReceiver
 from npvs.video import VideoReader
 
 
@@ -18,6 +18,7 @@ class ServerWorker(MediaPlayer):
     ) -> None:
         super().__init__()
         self.logger = get_logger("server-worker")
+        # self.logger.setLevel(logging.DEBUG)
         self.logger.info(
             "server worker created, serving (%s, %s)", client_ip, client_rtsp_port
         )
@@ -35,9 +36,13 @@ class ServerWorker(MediaPlayer):
         self.video_reader: VideoReader = None
 
         # self.dumper = Dumper("server-data.bin")
+        self.profile = cProfile.Profile()
+        self.profile.enable()
 
     def __del__(self) -> None:
         self.rtsp_socket.close()
+        self.profile.disable()
+        pstats.Stats(self.profile).dump_stats("server-worker.prof")
 
     def send_RTSP_response(self, status_code: rtsp.StatusCode) -> None:
         """Send RTSP response to the client."""
