@@ -7,3 +7,4 @@ videos/
 data/
 **/*.log
 **/*.bin
+**/*.prof

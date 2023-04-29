@@ -1,6 +1,8 @@
-from threading import Event, Thread
+from multiprocessing import Event, Process
 
 from npvs.common import *
+
+STREAM_ACTION_PER_WAIT = 50
 
 
 class MediaPlayer:
@@ -14,7 +16,7 @@ class MediaPlayer:
         self.state = self.INIT
         self.playing_flag = Event()
         self.streaming_flag = Event()
-        self.stream_thread: Thread = None
+        self.stream_thread: Process = None
         self.fps = 60
 
     def setup(self) -> bool:
@@ -26,7 +28,7 @@ class MediaPlayer:
 
         self.streaming_flag.set()
         self.playing_flag.clear()
-        self.stream_thread = Thread(target=self.stream)
+        self.stream_thread = Process(target=self.stream)
         self.stream_thread.start()
         self.state = self.READY
         return True
@@ -71,13 +73,14 @@ class MediaPlayer:
         return True
 
     def stream(self) -> None:
-        while self.streaming_flag.is_set():
-            if not self.playing_flag.is_set():
-                continue
-            try:
-                self._stream_()
-            except:
-                return
+        while True:
+            self.streaming_flag.wait()
+            self.playing_flag.wait()
+            for _ in range(STREAM_ACTION_PER_WAIT):
+                try:
+                    self._stream_()
+                except:
+                    return
 
     def _stream_(self) -> None:
         raise NotImplementedError

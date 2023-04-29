@@ -1,4 +1,6 @@
+import cProfile
 import json
+import pstats
 import socket
 
 from npvs import rtp, rtsp
@@ -13,6 +15,7 @@ class Client(MediaPlayer):
         super().__init__()
 
         self.logger = get_logger("client")
+        # self.logger.setLevel(logging.DEBUG)
         self.logger.info(
             "client created, connecting to RTSP(%s, %s)", server_ip, server_rtsp_port
         )
@@ -33,10 +36,15 @@ class Client(MediaPlayer):
         self.client_rtp_port = 0
         self.ps_receiver: PsReceiver = None
 
+        self.profile = cProfile.Profile()
+        self.profile.enable()
+
     def __del__(self) -> None:
         self.teardown()
         self.rtsp_socket.close()
         self.logger.info("client done")
+        self.profile.disable()
+        pstats.Stats(self.profile).dump_stats("client.prof")
 
     def send_RTSP_request(self, method: rtsp.Method) -> bool:
         self.rtsp_cseq += 1
@@ -80,7 +88,7 @@ class Client(MediaPlayer):
 
         self.rtsp_session = self.response["session"]
         self.rtp_socket, _ = s.accept()
-        self.ps_receiver = PsReceiver(self.rtp_socket, self.logger)
+        self.ps_receiver = PsReceiver(self.rtp_socket)
 
         s.close()
         return True
@@ -98,10 +106,17 @@ class Client(MediaPlayer):
         return True
 
     def _stream_(self) -> None:
-        payload = self.ps_receiver.next_payload()
-        if not payload:
-            return
-        self.video_assembler.add_packet(rtp.decode(payload))
+        # self.logger.debug("_stream_ called")
+        try:
+            payload = self.ps_receiver.next_payload()
+            if not payload:
+                return
+            self.video_assembler.add_packet(rtp.decode(payload))
+        except Exception as e:
+            self.logger.error(
+                "got exception in _stream_, e = %s, type = %s", str(e), e.__class__
+            )
+            raise e
 
     def next_frame(self):
         return self.video_assembler.next_frame()

@@ -1,11 +1,13 @@
+import ctypes
 import logging
 import socket
-from threading import Lock, Thread
+from multiprocessing import Array, Event, Lock, Process, Queue
 
 from npvs import ps
+from npvs.common import get_logger
 from npvs.dumper import Dumper
 
-BUFFER_SIZE = 1 << 14
+SOCKET_RECV_SIZE = 1 << 14
 
 
 class PsReceiver:
@@ -15,68 +17,35 @@ class PsReceiver:
     packets.
     """
 
-    def __init__(self, socket: socket.socket, logger: logging.Logger) -> None:
+    def __init__(self, socket: socket.socket) -> None:
         self.socket = socket
-        self.logger = logger
+        self.logger = get_logger("ps-receiver")
+        # self.logger.setLevel(logging.DEBUG)
 
-        self.lock = Lock()
         self.buffer = bytearray()
         self.current_size = None
+        self.payload_queue = Queue()
 
         # self.dumper = Dumper("client-data.bin")
 
-        self.recv_thread = Thread(target=self._receive_)
+        self.recv_thread = Process(target=self._receive_, args=[self.payload_queue])
+        self.is_done_flag = Event()
         self.recv_thread.start()
 
     def __del__(self) -> None:
         self.recv_thread.join()
 
-    def _receive_(self) -> None:
-        self.socket.settimeout(5)
+    def _try_parse_buffer_(self, queue: Queue):
         while True:
-            try:
-                data = self.socket.recv(BUFFER_SIZE)
-                if not data:
-                    self.logger.info("TCP session done")
-                    return
-                self.logger.debug("received data, data size = %s", len(data))
-                with self.lock:
-                    self.buffer += data
-                # self.dumper.append(data)
-            except socket.timeout as e:
-                # self.logger.warning("timed out when waiting for incoming packet")
-                pass
-            except Exception as e:
-                self.logger.error(
-                    "exception when waiting for incomming packet, e = %s", str(e)
-                )
-                raise e
-
-    def is_done(self) -> bool:
-        with self.lock:
-            if len(self.buffer) > 0:
-                return False
-        return not self.recv_thread.is_alive()
-
-    def next_payload(self) -> bytes | None:
-        if self.is_done():
-            return
-
-        with self.lock:
             if self.current_size == None:
                 if len(self.buffer) < 2:
-                    return
+                    break
                 self.current_size = ps.decode_header(self.buffer[:2])
                 self.buffer = self.buffer[2:]
 
             if len(self.buffer) < self.current_size + 1:
-                return
+                break
 
-            self.logger.debug(
-                "decode buffer, payload size = %s, buffer size = %s",
-                self.current_size,
-                len(self.buffer),
-            )
             payload = self.buffer[: self.current_size]
             terminator = self.buffer[self.current_size]
             self.buffer = self.buffer[self.current_size + 1 :]
@@ -87,4 +56,35 @@ class PsReceiver:
                 self.logger.error(str(e))
                 raise e
 
-            return payload
+            queue.put(payload)
+
+    def _receive_(self, queue: Queue) -> None:
+        self.socket.settimeout(5)
+        while True:
+            try:
+                data = self.socket.recv(SOCKET_RECV_SIZE)
+                if not data:
+                    self.logger.info("TCP session done")
+                    self.is_done_flag.set()
+                    return
+                self.buffer += data
+                self._try_parse_buffer_(queue)
+            except socket.timeout as e:
+                self.logger.warning("timed out when waiting for incoming packet")
+                pass
+            except Exception as e:
+                self.logger.error(
+                    "exception when waiting for incomming packet, e = %s", str(e)
+                )
+                self.is_done_flag.set()
+                raise e
+
+    def is_done(self) -> bool:
+        if not self.payload_queue.empty():
+            return False
+        return self.is_done_flag.is_set()
+
+    def next_payload(self) -> bytes | None:
+        if not self.payload_queue.empty():
+            return self.payload_queue.get()
+        return None

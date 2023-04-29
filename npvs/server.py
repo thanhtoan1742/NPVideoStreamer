@@ -1,5 +1,5 @@
 import socket
-from threading import Thread
+from multiprocessing import Process
 
 from npvs.common import *
 from npvs.server_worker import ServerWorker
@@ -23,6 +23,7 @@ class Server:
         self.worker_threads = []
 
     def __del__(self) -> None:
+        self.logger.info("shuting down server")
         self.socket.close()
         for thread in self.worker_threads:
             thread.join()
@@ -32,9 +33,10 @@ class Server:
         while True:
             client_socket, (client_ip, client_port) = self.socket.accept()
             self.logger.info("Accepted connection (%s, %s)", client_ip, client_port)
+            print("Accepted connection", client_ip, client_port)
 
             worker = ServerWorker(client_socket, client_ip, client_port)
-            thread = Thread(target=worker.run)
+            thread = Process(target=worker.run)
             thread.start()
             self.worker_threads.append(thread)
             break

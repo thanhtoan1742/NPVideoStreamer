@@ -1,12 +1,13 @@
+import logging
 import pickle
-from queue import PriorityQueue
-from multiprocessing import Lock
+from multiprocessing import Queue
 from typing import Tuple
 
 import cv2
 import numpy as np
 
 from npvs import rtp
+from npvs.common import get_logger
 
 
 class VideoReader:
@@ -38,36 +39,35 @@ class VideoAssembler:
     """
 
     def __init__(self) -> None:
-        self.packet_buffer = PriorityQueue()
-        self.packet_counter = 0
+        self.logger = get_logger("video-assembler")
+        self.logger.setLevel(logging.DEBUG)
 
-        self.frame_buffer = []
-        self.frame_buffer_lock = Lock()
+        self.packet_counter = 0
         self.current_bin_frame = b""
 
+        self.frame_queue = Queue()
+
     def add_packet(self, packet: rtp.Packet):
-        self.packet_buffer.put(packet)
+        if packet.sequence_number() != self.packet_counter:
+            raise Exception(
+                f"unmatched sequence number, expected {self.packet_counter}, got {packet.sequence_number()}"
+            )
+        self.packet_counter += 1
+        self.current_bin_frame += packet.payload
 
-        while True:
-            if self.packet_buffer.empty():
-                break
-
-            if self.packet_buffer.queue[0].sequence_number() != self.packet_counter:
-                break
-
-            p = self.packet_buffer.get()
-            self.packet_counter += 1
-            self.current_bin_frame += p.payload
-
-            if p.marker():
-                frame = pickle.loads(self.current_bin_frame)
-                self.current_bin_frame = b""
-                with self.frame_buffer_lock:
-                    self.frame_buffer.append(frame)
+        if packet.marker():
+            frame = pickle.loads(self.current_bin_frame)
+            self.logger.debug("assembled frame shape = %s", str(frame.shape))
+            self.current_bin_frame = b""
+            self.frame_queue.put(frame)
 
     def next_frame(self) -> Tuple[bool, np.ndarray]:
-        with self.frame_buffer_lock:
-            if len(self.frame_buffer) > 0:
-                return True, self.frame_buffer.pop(0)
-
+        # TODO: currentl, every other call of next frame will return missed frame
+        # even if there are frame in buffer. This bug is suspected to be caused by
+        # the fact that add_packet and next_frame is run in 2 different process.
+        self.logger.debug("next frame called")
+        if not self.frame_queue.empty():
+            self.logger.debug("video assembler poped a frame")
+            return True, self.frame_queue.get()
+        self.logger.debug("missed frame")
         return False, None
