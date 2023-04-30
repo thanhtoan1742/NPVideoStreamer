@@ -67,6 +67,8 @@ class PsReceiver:
                     self.logger.info("TCP session done")
                     self.is_done_flag.set()
                     return
+
+                self.logger.debug("received packet size = %d", len(data))
                 self.buffer += data
                 self._try_parse_buffer_(queue)
             except socket.timeout as e:
