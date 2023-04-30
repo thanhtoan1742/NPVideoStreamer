@@ -1,6 +1,6 @@
 import os
 
-os.environ["KIVY_NO_CONSOLELOG"] = "1"
+# os.environ["KIVY_NO_CONSOLELOG"] = "1"
 
 import sys
 
@@ -40,7 +40,7 @@ class ClientApp(App):
             "starting app with following arguments: (%s, %s) %s", ip, rtspPort, fileName
         )
         self.client = Client(ip, rtspPort, fileName)
-        self.fps = 60
+        self.fps = 30
         self.playing = False
 
         layout = BoxLayout(orientation="vertical")

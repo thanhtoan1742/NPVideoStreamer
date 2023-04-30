@@ -40,7 +40,7 @@ class VideoAssembler:
 
     def __init__(self) -> None:
         self.logger = get_logger("video-assembler")
-        self.logger.setLevel(logging.DEBUG)
+        # self.logger.setLevel(logging.DEBUG)
 
         self.packet_counter = 0
         self.current_bin_frame = b""
@@ -48,7 +48,8 @@ class VideoAssembler:
         self.frame_queue = Queue()
 
     def add_packet(self, packet: rtp.Packet):
-        if packet.sequence_number() != self.packet_counter:
+        self.logger.debug("adding packet = %s", str(packet))
+        if packet.sequence_number() != (self.packet_counter & 0xFFFF):
             raise Exception(
                 f"unmatched sequence number, expected {self.packet_counter}, got {packet.sequence_number()}"
             )
@@ -65,7 +66,6 @@ class VideoAssembler:
         # TODO: currentl, every other call of next frame will return missed frame
         # even if there are frame in buffer. This bug is suspected to be caused by
         # the fact that add_packet and next_frame is run in 2 different process.
-        self.logger.debug("next frame called")
         if not self.frame_queue.empty():
             self.logger.debug("video assembler poped a frame")
             return True, self.frame_queue.get()

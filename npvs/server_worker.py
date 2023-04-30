@@ -140,7 +140,8 @@ class ServerWorker(MediaPlayer):
             data["sequenceNumber"] = self.rtp_sequence_number
             self.rtp_sequence_number += 1
 
-            packet = ps.Packet(rtp.packet_from_dict(data).encode())
+            rtp_packet = rtp.packet_from_dict(data)
+            packet = ps.Packet(rtp_packet.encode())
 
             try:
                 self.rtp_socket.sendall(packet.encode())
@@ -149,7 +150,9 @@ class ServerWorker(MediaPlayer):
                 raise e
 
             self.logger.debug(
-                "sent ps packet with payload size: %s", str(packet.payload_size())
+                "sent ps packet with payload size: %s, rtp = %s",
+                str(packet.payload_size()),
+                str(rtp_packet),
             )
             # self.dumper.append(packet.encode())
 
