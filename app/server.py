@@ -7,5 +7,5 @@ try:
 except:
     print("Usage: python Server.py rtspPort\n")
 
-app = Server("127.0.0.1", port)
+app = Server("", port)
 app.run()
