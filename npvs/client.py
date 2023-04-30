@@ -36,15 +36,10 @@ class Client(MediaPlayer):
         self.client_rtp_port = 0
         self.ps_receiver: PsReceiver = None
 
-        self.profile = cProfile.Profile()
-        self.profile.enable()
-
     def __del__(self) -> None:
         self.teardown()
         self.rtsp_socket.close()
         self.logger.info("client done")
-        self.profile.disable()
-        pstats.Stats(self.profile).dump_stats("client.prof")
 
     def send_RTSP_request(self, method: rtsp.Method) -> bool:
         self.rtsp_cseq += 1
