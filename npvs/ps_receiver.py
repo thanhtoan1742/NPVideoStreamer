@@ -1,11 +1,10 @@
 import ctypes
 import logging
 import socket
-from multiprocessing import Array, Event, Lock, Process, Queue
+from multiprocessing import Event, Process, Queue
 
 from npvs import ps
 from npvs.common import get_logger
-from npvs.dumper import Dumper
 
 SOCKET_RECV_SIZE = 1 << 14
 

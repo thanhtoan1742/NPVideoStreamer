@@ -3,7 +3,7 @@ import time
 from npvs.client import Client
 from npvs.server import Server
 
-client = Client("127.0.0.1", 1200, "data/suprise.mp4")
+client = Client("192.168.1.8", 1200, "data/suprise.mp4")
 client.setup()
 
 cnt = 0
