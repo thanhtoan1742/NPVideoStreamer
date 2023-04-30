@@ -86,7 +86,7 @@ class PsReceiver:
             return False
         return self.is_done_flag.is_set()
 
-    def next_payload(self) -> bytes | None:
+    def next_payload(self) -> bytes:
         if not self.payload_queue.empty():
             return self.payload_queue.get()
         return None
