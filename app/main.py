@@ -1,19 +1,21 @@
+import multiprocessing as mp
 import time
 
 from npvs.client import Client
-from npvs.server import Server
 
-client = Client("192.168.1.8", 1200, "data/suprise.mp4")
-client.setup()
+if __name__ == "__main__":
+    mp.set_start_method("spawn")
 
-cnt = 0
-client.play()
+    client = Client("127.0.0.1", 1201, "data/suprise.mp4")
+    client.setup()
 
-while True:
-    ok, frame = client.next_frame()
-    if ok:
-        print(cnt, frame.shape)
-        cnt += 1
+    cnt = 0
+    client.play()
 
+    while True:
+        ok, frame = client.next_frame()
+        if ok:
+            print(cnt, frame.shape)
+            cnt += 1
 
-client.teardown()
+    client.teardown()

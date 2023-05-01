@@ -1,14 +1,82 @@
-import cProfile
 import json
 import pickle
-import pstats
 import socket
+from multiprocessing import Event, Process
 from random import randint
 
 from npvs import ps, rtp, rtsp
 from npvs.common import *
 from npvs.media_player import MediaPlayer
 from npvs.video import VideoReader
+
+FRAME_PER_CHECK = 50
+
+
+def run_server_worker(
+    rtsp_socket: socket.socket, client_ip: str, client_rtsp_port: int
+):
+    worker = ServerWorker(rtsp_socket, client_ip, client_rtsp_port)
+    worker.run()
+    rtsp_socket.close()
+
+
+def stream_video(
+    client_ip: str,
+    client_rtp_port: int,
+    filename: str,
+    streaming_flag: Event,
+    stop_flag: Event,
+):
+    video_reader = VideoReader(filename)
+    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    connection.connect((client_ip, client_rtp_port))
+
+    rtp_sequence_number = 0
+    while True:
+        if video_reader.frame_counter % FRAME_PER_CHECK == 0:
+            if stop_flag.is_set():
+                break
+            if not streaming_flag.is_set():
+                streaming_flag.wait()
+
+        ok, frame = video_reader.next_frame()
+        if not ok:
+            break
+
+        bin_frame = pickle.dumps(frame)
+        data = {
+            "version": 2,
+            # "padding": 0, # does not support padding, defaults to 0
+            # "extension": 0, # does not support extension, defaults to 0
+            # "csrcCount": 0, # does not support other than 0
+            # "marker": 0,
+            "payloadType": 26,  # MJPEG type
+            "timestamp": video_reader.frame_counter - 1,
+            "ssrc": 123,
+            # "csrcList": [], # does not support other than empty list
+            # "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
+            # "payload": pickle.dumps(fitPayload(frame))
+        }
+
+        start = 0
+        while start < len(bin_frame):
+            end = min(start + rtp.PAYLOAD_SIZE, len(bin_frame))
+
+            data["payload"] = bin_frame[start:end]
+            data["marker"] = end == len(bin_frame)
+            data["sequenceNumber"] = rtp_sequence_number
+            rtp_sequence_number += 1
+
+            rtp_packet = rtp.packet_from_dict(data)
+            packet = ps.Packet(rtp_packet.encode())
+            try:
+                connection.sendall(packet.encode())
+            except Exception as e:
+                # logger.error("Expcetion when try to send RTP data, e = %s", str(e))
+                raise e
+            start = end
+
+    connection.close()
 
 
 class ServerWorker(MediaPlayer):
@@ -26,16 +94,15 @@ class ServerWorker(MediaPlayer):
         self.client_ip = client_ip
         self.client_rtsp_port = client_rtsp_port
         self.rtsp_session = 0
-        self.request = None
+        self.request: dict = None
 
-        self.rtp_socket: socket.socket = None
-        self.client_rtp_port = 0
-        self.rtp_sequence_number = 0
-
-        self.video_reader: VideoReader = None
+        self.stream_process: Process = None
+        self.streaming_flag = Event()
+        self.stop_flag = Event()
 
     def __del__(self) -> None:
-        self.rtsp_socket.close()
+        if self.stream_process != None:
+            self.stream_process.join()
 
     def send_RTSP_response(self, status_code: rtsp.StatusCode) -> None:
         """Send RTSP response to the client."""
@@ -47,115 +114,62 @@ class ServerWorker(MediaPlayer):
         self.rtsp_socket.send(message.encode())
         self.logger.info("sent RTPS message = %s", json.dumps(response, indent=2))
 
-    def process_RTSP_request(self, message: str) -> None:
-        """Process rtsp request sent from the client."""
-        self.request = rtsp.parse_request(message)
-        self.logger.info(
-            "processing RTSP message = %s", json.dumps(self.request, indent=2)
-        )
-
-        if self.request["method"] == rtsp.Method.SETUP:
-            self.setup()
-
-        if self.request["method"] == rtsp.Method.PLAY:
-            self.play()
-
-        if self.request["method"] == rtsp.Method.PAUSE:
-            self.pause()
-
-        if self.request["method"] == rtsp.Method.TEARDOWN:
-            self.teardown()
-
     def _setup_(self) -> bool:
-        try:
-            self.video_reader = VideoReader(self.request["fileName"])
-            self.state = self.READY
-        except IOError:
-            self.send_RTSP_response(rtsp.StatusCode.FILE_NOT_FOUND)
-            return False
-        self.logger.info("video reader reading file %s", self.request["fileName"])
-
+        # TODO: handle file not found case
         self.rtsp_session = randint(100000, 999999)
-        self.client_rtp_port = self.request["clientPort"]
-        self.rtp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.rtp_socket.connect((self.client_ip, self.client_rtp_port))
-        self.logger.info(
-            "RTP socket opened, serving (%s, %s)", self.client_ip, self.client_rtp_port
+        self.stream_process = Process(
+            target=stream_video,
+            args=[
+                self.client_ip,
+                self.request["clientPort"],
+                self.request["fileName"],
+                self.streaming_flag,
+                self.stop_flag,
+            ],
         )
+        self.stream_process.start()
 
         self.send_RTSP_response(rtsp.StatusCode.OK)
         return True
 
     def _play_(self) -> bool:
         self.send_RTSP_response(rtsp.StatusCode.OK)
+        self.streaming_flag.set()
         return True
 
     def _pause_(self) -> bool:
         self.send_RTSP_response(rtsp.StatusCode.OK)
+        self.streaming_flag.clear()
         return True
 
     def _teardown_(self) -> bool:
-        self.rtp_socket.close()
         self.send_RTSP_response(rtsp.StatusCode.OK)
         self.logger.info(
             "RTP socket closed, stop serving (%s, %s)",
             self.client_ip,
             self.client_rtp_port,
         )
+        self.stop_flag.set()
+        self.stream_process.join()
         return True
-
-    def _stream_(self) -> None:
-        ok, frame = self.video_reader.next_frame()
-        if not ok:
-            return
-
-        bin_frame = pickle.dumps(frame)
-        data = {
-            "version": 2,
-            # "padding": 0, # does not support padding, defaults to 0
-            # "extension": 0, # does not support extension, defaults to 0
-            # "csrcCount": 0, # does not support other than 0
-            # "marker": 0,
-            "payloadType": 26,  # MJPEG type
-            "timestamp": self.video_reader.frame_counter - 1,
-            "ssrc": 123,
-            # "csrcList": [], # does not support other than empty list
-            # "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
-            # "payload": pickle.dumps(fitPayload(frame))
-        }
-
-        i = 0
-        while i < len(bin_frame):
-            j = min(i + rtp.PAYLOAD_SIZE, len(bin_frame))
-
-            data["payload"] = bin_frame[i:j]
-            data["marker"] = j == len(bin_frame)
-            data["sequenceNumber"] = self.rtp_sequence_number
-            self.rtp_sequence_number += 1
-
-            rtp_packet = rtp.packet_from_dict(data)
-            packet = ps.Packet(rtp_packet.encode())
-
-            try:
-                self.rtp_socket.sendall(packet.encode())
-            except Exception as e:
-                self.logger.error("Expcetion when try to send RTP data, e = %s", str(e))
-                raise e
-
-            self.logger.debug(
-                "sent ps packet with payload size: %s, rtp = %s",
-                str(packet.payload_size()),
-                str(rtp_packet),
-            )
-            # self.dumper.append(packet.encode())
-
-            i = j
 
     def run(self) -> None:
         while True:
+            # TODO: handle receiving incomplete message.
             message = self.rtsp_socket.recv(rtsp.RTSP_MESSAGE_SIZE)
             if not message:
                 break
-            self.process_RTSP_request(message.decode())
 
-        self.teardown()
+            self.request = rtsp.parse_request(message.decode())
+            self.logger.info(
+                "processing RTSP message = %s", json.dumps(self.request, indent=2)
+            )
+            if self.request["method"] == rtsp.Method.SETUP:
+                self.setup()
+            if self.request["method"] == rtsp.Method.PLAY:
+                self.play()
+            if self.request["method"] == rtsp.Method.PAUSE:
+                self.pause()
+            if self.request["method"] == rtsp.Method.TEARDOWN:
+                self.teardown()
+                break

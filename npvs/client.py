@@ -2,12 +2,24 @@ import cProfile
 import json
 import pstats
 import socket
+from multiprocessing import Process, Queue
 
 from npvs import rtp, rtsp
 from npvs.common import *
 from npvs.media_player import MediaPlayer
 from npvs.ps_receiver import PsReceiver
 from npvs.video import VideoAssembler
+
+
+def receive_assemble_packet(conn: socket.socket, frame_queue: Queue):
+    ps_receiver = PsReceiver(conn)
+    video_assembler = VideoAssembler(frame_queue)
+    while True:
+        payload = ps_receiver.next_payload()
+        if not payload:
+            break
+        video_assembler.add_packet(rtp.decode(payload))
+    # frame_queue.close()
 
 
 class Client(MediaPlayer):
@@ -30,14 +42,23 @@ class Client(MediaPlayer):
         self.rtsp_socket.connect((self.server_ip, self.server_rtsp_port))
         self.logger.info("connected to RTSP(%s, %s)", server_ip, server_rtsp_port)
 
-        self.video_assembler = VideoAssembler()
-
         self.rtp_socket: socket.socket = None
-        self.client_rtp_port = 0
-        self.ps_receiver: PsReceiver = None
+        self.frame_queue = Queue()
+        self.rtp_process: Process = None
+
+    def join_rtp_process(self):
+        while not self.frame_queue.empty():
+            self.frame_queue.get()
+        if self.rtp_process != None:
+            self.rtp_process.join()
+        self.rtp_process = None
+        if self.rtp_socket != None:
+            self.rtp_socket.close()
+        self.rtp_socket = None
 
     def __del__(self) -> None:
         self.teardown()
+        self.join_rtp_process()
         self.rtsp_socket.close()
         self.logger.info("client done")
 
@@ -74,8 +95,8 @@ class Client(MediaPlayer):
         # RTP connection.
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(("", 0))
-        self.client_rtp_port = int(s.getsockname()[1])  # get the port
-        s.listen()
+        self.client_rtp_port = int(s.getsockname()[1])
+        s.listen(1)
 
         if not self.send_RTSP_request(rtsp.Method.SETUP):
             s.close()
@@ -83,7 +104,10 @@ class Client(MediaPlayer):
 
         self.rtsp_session = self.response["session"]
         self.rtp_socket, _ = s.accept()
-        self.ps_receiver = PsReceiver(self.rtp_socket)
+        self.rtp_process = Process(
+            target=receive_assemble_packet, args=[self.rtp_socket, self.frame_queue]
+        )
+        self.rtp_process.start()
 
         s.close()
         return True
@@ -97,21 +121,11 @@ class Client(MediaPlayer):
     def _teardown_(self) -> bool:
         if not self.send_RTSP_request(rtsp.Method.TEARDOWN):
             return False
-        self.rtsp_socket.close()
+        self.join_rtp_process()
         return True
 
-    def _stream_(self) -> None:
-        # self.logger.debug("_stream_ called")
-        try:
-            payload = self.ps_receiver.next_payload()
-            if not payload:
-                return
-            self.video_assembler.add_packet(rtp.decode(payload))
-        except Exception as e:
-            self.logger.error(
-                "got exception in _stream_, e = %s, type = %s", str(e), e.__class__
-            )
-            raise e
-
     def next_frame(self):
-        return self.video_assembler.next_frame()
+        if self.frame_queue.empty():
+            return False, None
+        else:
+            return True, self.frame_queue.get()

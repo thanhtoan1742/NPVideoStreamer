@@ -3,6 +3,7 @@ import os
 os.environ["KIVY_NO_CONSOLELOG"] = "1"
 
 import sys
+import multiprocessing as mp
 
 import cv2
 import numpy as np
@@ -103,6 +104,7 @@ class ClientApp(App):
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn")
     try:
         ip = sys.argv[1]
         rtspPort = int(sys.argv[2])

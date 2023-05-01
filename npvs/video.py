@@ -1,7 +1,6 @@
 import logging
 import pickle
 from multiprocessing import Queue
-from typing import Tuple
 
 import cv2
 import numpy as np
@@ -38,14 +37,14 @@ class VideoAssembler:
     Assemble rtp packets to frames.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, frame_queue: Queue) -> None:
         self.logger = get_logger("video-assembler")
         # self.logger.setLevel(logging.DEBUG)
 
         self.packet_counter = 0
         self.current_bin_frame = b""
 
-        self.frame_queue = Queue()
+        self.frame_queue = frame_queue
 
     def add_packet(self, packet: rtp.Packet):
         self.logger.debug("adding packet = %s", str(packet))
@@ -61,13 +60,3 @@ class VideoAssembler:
             self.logger.debug("assembled frame shape = %s", str(frame.shape))
             self.current_bin_frame = b""
             self.frame_queue.put(frame)
-
-    def next_frame(self) -> Tuple[bool, np.ndarray]:
-        # TODO: currentl, every other call of next frame will return missed frame
-        # even if there are frame in buffer. This bug is suspected to be caused by
-        # the fact that add_packet and next_frame is run in 2 different process.
-        if not self.frame_queue.empty():
-            self.logger.debug("video assembler poped a frame")
-            return True, self.frame_queue.get()
-        self.logger.debug("missed frame")
-        return False, None
