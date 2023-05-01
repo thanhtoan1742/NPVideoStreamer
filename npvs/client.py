@@ -75,7 +75,11 @@ class Client(MediaPlayer):
             self.frame_queue.get()
         self.logger.debug("frame queue cleared")
         if self.rtp_process != None:
-            self.rtp_process.join()
+            self.rtp_process.join(2)
+            if self.rtp_process.is_alive():
+                self.logger.error(
+                    "RTP Process still alive, pid = %d", self.rtp_process.pid
+                )
         self.logger.debug("rtp process joined")
         self.rtp_process = None
         if self.rtp_socket != None:

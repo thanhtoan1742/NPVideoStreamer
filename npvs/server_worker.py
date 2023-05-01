@@ -36,7 +36,10 @@ def stream_video(
     logger.info("connected to (%s, %d)", client_ip, client_rtp_port)
 
     rtp_sequence_number = 0
+    is_done = False
     while True:
+        if is_done:
+            break
         if video_reader.frame_counter % FRAME_PER_CHECK == 0:
             if stop_flag.is_set():
                 logger.info("stop flag is set, exiting stream process")
@@ -79,6 +82,10 @@ def stream_video(
             packet = ps.Packet(rtp_packet.encode())
             try:
                 connection.sendall(packet.encode())
+            except ConnectionResetError as e:
+                logger.error(str(e))
+                is_done = True
+                break
             except Exception as e:
                 logger.error("Expcetion when try to send RTP data, e = %s", str(e))
                 raise e

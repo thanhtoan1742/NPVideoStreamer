@@ -1,6 +1,6 @@
 import os
 
-os.environ["KIVY_NO_CONSOLELOG"] = "1"
+# os.environ["KIVY_NO_CONSOLELOG"] = "1"
 
 import sys
 import multiprocessing as mp
