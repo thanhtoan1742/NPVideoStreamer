@@ -1,9 +1,9 @@
 class MediaPlayer:
     """Player class manage state of a media player"""
 
-    INIT = 0
-    READY = 1
-    PLAYING = 2
+    INIT = "INIT"
+    READY = "READY"
+    PLAYING = "PLAYING"
 
     def __init__(self) -> None:
         self.state = self.INIT

@@ -1,3 +1,4 @@
+import logging
 import socket
 from multiprocessing import Process
 
@@ -13,17 +14,19 @@ class Server:
 
     def __init__(self, ip: str, port: int) -> None:
         self.logger = get_logger("server")
+        self.logger.setLevel(logging.DEBUG)
         self.ip = ip
         self.port = port
         self.worker_process = []
 
     def __del__(self) -> None:
         self.logger.info("Shuting down server")
-        self.socket.close()
         for thread in self.worker_process:
             thread.join()
+        self.logger.info("server shuted down")
 
     def run(self) -> None:
+        self.logger.debug("server start run")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((self.ip, self.port))
         s.listen(1)
@@ -43,3 +46,4 @@ class Server:
             self.worker_process.append(process)
             break
         s.close()
+        self.logger.debug("server stop run")
