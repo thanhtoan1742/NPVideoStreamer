@@ -1,7 +1,5 @@
-import ctypes
 import logging
 import socket
-from multiprocessing import Event, Process, Queue
 
 from npvs import ps
 from npvs.common import get_logger
@@ -18,23 +16,18 @@ class PsReceiver:
 
     def __init__(self, socket: socket.socket) -> None:
         self.socket = socket
+        self.socket.settimeout(5)
+
         self.logger = get_logger("ps-receiver")
         # self.logger.setLevel(logging.DEBUG)
 
         self.buffer = bytearray()
         self.current_size = None
-        self.payload_queue = Queue()
+        self.payload_queue = []
 
-        # self.dumper = Dumper("client-data.bin")
+        self.is_done_flag = False
 
-        self.recv_thread = Process(target=self._receive_, args=[self.payload_queue])
-        self.is_done_flag = Event()
-        self.recv_thread.start()
-
-    def __del__(self) -> None:
-        self.recv_thread.join()
-
-    def _try_parse_buffer_(self, queue: Queue):
+    def _try_parse_buffer_(self):
         while True:
             if self.current_size == None:
                 if len(self.buffer) < 2:
@@ -55,37 +48,40 @@ class PsReceiver:
                 self.logger.error(str(e))
                 raise e
 
-            queue.put(payload)
+            self.payload_queue.append(payload)
 
-    def _receive_(self, queue: Queue) -> None:
-        self.socket.settimeout(5)
-        while True:
-            try:
-                data = self.socket.recv(SOCKET_RECV_SIZE)
-                if not data:
-                    self.logger.info("TCP session done")
-                    self.is_done_flag.set()
-                    return
+    def _receive_(self) -> None:
+        if self.is_done():
+            raise Exception("Try to receive data on a closed socket")
+        try:
+            data = self.socket.recv(SOCKET_RECV_SIZE)
+            if not data:
+                self.logger.info("TCP session done")
+                self.is_done_flag = True
+                return
 
-                self.logger.debug("received packet size = %d", len(data))
-                self.buffer += data
-                self._try_parse_buffer_(queue)
-            except socket.timeout as e:
-                self.logger.warning("timed out when waiting for incoming packet")
-                pass
-            except Exception as e:
-                self.logger.error(
-                    "exception when waiting for incomming packet, e = %s", str(e)
-                )
-                self.is_done_flag.set()
-                raise e
+            self.logger.debug("received packet size = %d", len(data))
+            self.buffer += data
+        except socket.timeout as e:
+            self.logger.warning("timed out when waiting for incoming packet")
+            pass
+        except Exception as e:
+            self.logger.error(
+                "exception when waiting for incomming packet, e = %s", str(e)
+            )
+            self.is_done_flag = True
+            raise e
 
     def is_done(self) -> bool:
-        if not self.payload_queue.empty():
-            return False
-        return self.is_done_flag.is_set()
+        return self.is_done_flag
 
-    def next_payload(self) -> bytes | None:
-        if not self.payload_queue.empty():
-            return self.payload_queue.get()
-        return None
+    def next_payload(self) -> bytes:
+        while len(self.payload_queue) == 0:
+            if self.is_done():
+                return
+            self._receive_()
+            self._try_parse_buffer_()
+
+        payload = self.payload_queue[0]
+        self.payload_queue.pop(0)
+        return payload
