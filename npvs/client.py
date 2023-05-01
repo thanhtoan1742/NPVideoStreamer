@@ -20,7 +20,7 @@ def receive_assemble_packet(
     stop_flag: Event,
 ):
     logger = get_logger("receive-assemble-process")
-    logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.DEBUG)
 
     ps_receiver = PsReceiver(conn)
     video_assembler = VideoAssembler(frame_queue)
@@ -48,7 +48,7 @@ class Client(MediaPlayer):
         super().__init__()
 
         self.logger = get_logger("client")
-        self.logger.setLevel(logging.DEBUG)
+        # self.logger.setLevel(logging.DEBUG)
         self.logger.info(
             "client created, connecting to RTSP(%s, %s)", server_ip, server_rtsp_port
         )

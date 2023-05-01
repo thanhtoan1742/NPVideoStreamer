@@ -14,7 +14,7 @@ class Server:
 
     def __init__(self, ip: str, port: int) -> None:
         self.logger = get_logger("server")
-        self.logger.setLevel(logging.DEBUG)
+        # self.logger.setLevel(logging.DEBUG)
         self.ip = ip
         self.port = port
         self.worker_process = []
