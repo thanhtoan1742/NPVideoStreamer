@@ -27,20 +27,31 @@ def stream_video(
     streaming_flag: Event,
     stop_flag: Event,
 ):
+    logger = get_logger("server-worker-stream")
+    # logger.setLevel(logging.DEBUG)
+
     video_reader = VideoReader(filename)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connection.connect((client_ip, client_rtp_port))
+    logger.info("connected to (%s, %d)", client_ip, client_rtp_port)
 
     rtp_sequence_number = 0
+    is_done = False
     while True:
+        if is_done:
+            break
         if video_reader.frame_counter % FRAME_PER_CHECK == 0:
             if stop_flag.is_set():
+                logger.info("stop flag is set, exiting stream process")
                 break
             if not streaming_flag.is_set():
-                streaming_flag.wait()
+                ok = streaming_flag.wait(1)
+                if not ok:
+                    continue
 
         ok, frame = video_reader.next_frame()
         if not ok:
+            logger.info("video reader done reading, exiting")
             break
 
         bin_frame = pickle.dumps(frame)
@@ -71,8 +82,12 @@ def stream_video(
             packet = ps.Packet(rtp_packet.encode())
             try:
                 connection.sendall(packet.encode())
+            except ConnectionResetError as e:
+                logger.error(str(e))
+                is_done = True
+                break
             except Exception as e:
-                # logger.error("Expcetion when try to send RTP data, e = %s", str(e))
+                logger.error("Expcetion when try to send RTP data, e = %s", str(e))
                 raise e
             start = end
 
@@ -144,13 +159,9 @@ class ServerWorker(MediaPlayer):
 
     def _teardown_(self) -> bool:
         self.send_RTSP_response(rtsp.StatusCode.OK)
-        self.logger.info(
-            "RTP socket closed, stop serving (%s, %s)",
-            self.client_ip,
-            self.client_rtp_port,
-        )
         self.stop_flag.set()
         self.stream_process.join()
+        self.stream_process = None
         return True
 
     def run(self) -> None:
