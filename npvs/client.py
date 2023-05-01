@@ -2,7 +2,7 @@ import cProfile
 import json
 import pstats
 import socket
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Event
 
 from npvs import rtp, rtsp
 from npvs.common import *
@@ -11,15 +11,36 @@ from npvs.ps_receiver import PsReceiver
 from npvs.video import VideoAssembler
 
 
-def receive_assemble_packet(conn: socket.socket, frame_queue: Queue):
+PACKET_PER_CHECK = 300
+
+
+def receive_assemble_packet(
+    conn: socket.socket,
+    frame_queue: Queue,
+    stop_flag: Event,
+):
+    logger = get_logger("receive-assemble-process")
+    logger.setLevel(logging.DEBUG)
+
     ps_receiver = PsReceiver(conn)
     video_assembler = VideoAssembler(frame_queue)
+    packet_counter = 0
+    logger.debug("start receiving and assembling")
     while True:
+        if packet_counter % PACKET_PER_CHECK == 0:
+            logger.debug("checking stop flag")
+            if stop_flag.is_set():
+                logger.debug("stop flag is set, exiting")
+                break
+            logger.debug("stop flag is not set, continue")
         payload = ps_receiver.next_payload()
         if not payload:
+            logger.info("no payload, exiting")
             break
         video_assembler.add_packet(rtp.decode(payload))
+        packet_counter += 1
     # frame_queue.close()
+    logger.info("receive assemble process is done, exiting")
 
 
 class Client(MediaPlayer):
@@ -27,7 +48,7 @@ class Client(MediaPlayer):
         super().__init__()
 
         self.logger = get_logger("client")
-        # self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.DEBUG)
         self.logger.info(
             "client created, connecting to RTSP(%s, %s)", server_ip, server_rtsp_port
         )
@@ -45,22 +66,29 @@ class Client(MediaPlayer):
         self.rtp_socket: socket.socket = None
         self.frame_queue = Queue()
         self.rtp_process: Process = None
+        self.rtp_stop_flag = Event()
 
     def join_rtp_process(self):
+        self.rtp_stop_flag.set()
+        self.logger.debug("rtp stop flag is set")
         while not self.frame_queue.empty():
             self.frame_queue.get()
+        self.logger.debug("frame queue cleared")
         if self.rtp_process != None:
             self.rtp_process.join()
+        self.logger.debug("rtp process joined")
         self.rtp_process = None
         if self.rtp_socket != None:
             self.rtp_socket.close()
+        self.logger.debug("rtp socket closed")
         self.rtp_socket = None
 
     def __del__(self) -> None:
+        self.logger.debug("client destructor called")
         self.teardown()
         self.join_rtp_process()
         self.rtsp_socket.close()
-        self.logger.info("client done")
+        self.logger.debug("client done")
 
     def send_RTSP_request(self, method: rtsp.Method) -> bool:
         self.rtsp_cseq += 1
@@ -105,7 +133,8 @@ class Client(MediaPlayer):
         self.rtsp_session = self.response["session"]
         self.rtp_socket, _ = s.accept()
         self.rtp_process = Process(
-            target=receive_assemble_packet, args=[self.rtp_socket, self.frame_queue]
+            target=receive_assemble_packet,
+            args=[self.rtp_socket, self.frame_queue, self.rtp_stop_flag],
         )
         self.rtp_process.start()
 

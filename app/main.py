@@ -6,7 +6,7 @@ from npvs.client import Client
 if __name__ == "__main__":
     mp.set_start_method("spawn")
 
-    client = Client("127.0.0.1", 1201, "data/suprise.mp4")
+    client = Client("127.0.0.1", 1200, "data/suprise.mp4")
     client.setup()
 
     cnt = 0
