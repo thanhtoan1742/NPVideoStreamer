@@ -108,10 +108,11 @@ class Client(MediaPlayer):
             request["session"] = self.rtsp_session
         message = rtsp.create_request(request)
         self.rtsp_socket.sendall(message.encode())
-        self.logger.info("sent message = %s", json.dumps(request, indent=2))
+        self.logger.info("sent RTPS message = \n%s", message)
 
         message = self.rtsp_socket.recv(rtsp.RTSP_MESSAGE_SIZE).decode()
         self.response = rtsp.parse_response(message)
+        self.logger.info("received RTPS message = \n%s", message)
         if self.response["statusCode"] > 299:
             self.logger.error(
                 "server responsed, status code = %s,\nreponse = %s",
