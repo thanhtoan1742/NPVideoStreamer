@@ -96,10 +96,10 @@ class ClientApp(App):
 
         ok, frame = self.client.next_frame()
         if not ok:
-            self.logger.info("missed frame")
+            self.logger.debug("missed frame")
             return
 
-        self.logger.info("got frame")
+        self.logger.debug("got frame")
         self.image.texture = toTexture(frame)
 
 

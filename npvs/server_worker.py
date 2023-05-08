@@ -127,7 +127,7 @@ class ServerWorker(MediaPlayer):
         message = rtsp.create_response(response)
 
         self.rtsp_socket.send(message.encode())
-        self.logger.info("sent RTPS message = %s", json.dumps(response, indent=2))
+        self.logger.info("sent RTPS message = \n%s", message)
 
     def _setup_(self) -> bool:
         # TODO: handle file not found case
@@ -170,11 +170,8 @@ class ServerWorker(MediaPlayer):
             message = self.rtsp_socket.recv(rtsp.RTSP_MESSAGE_SIZE)
             if not message:
                 break
-
+            self.logger.info("received RTPS message = \n%s", message.decode())
             self.request = rtsp.parse_request(message.decode())
-            self.logger.info(
-                "processing RTSP message = %s", json.dumps(self.request, indent=2)
-            )
             if self.request["method"] == rtsp.Method.SETUP:
                 self.setup()
             if self.request["method"] == rtsp.Method.PLAY:
