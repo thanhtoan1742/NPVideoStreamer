@@ -54,7 +54,7 @@ class PsReceiver:
         if self.is_done():
             raise Exception("Try to receive data on a closed socket")
         try:
-            data = self.socket.recv(SOCKET_RECV_SIZE)
+            data, _ = self.socket.recvfrom(SOCKET_RECV_SIZE)
             if not data:
                 self.logger.info("TCP session done")
                 self.is_done_flag = True

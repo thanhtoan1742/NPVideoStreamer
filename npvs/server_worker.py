@@ -7,7 +7,7 @@ from random import randint
 from npvs import ps, rtp, rtsp
 from npvs.common import *
 from npvs.media_player import MediaPlayer
-from npvs.video import VideoReader
+from npvs.video import VideoReader, fit_payload
 
 FRAME_PER_CHECK = 50
 
@@ -31,9 +31,7 @@ def stream_video(
     # logger.setLevel(logging.DEBUG)
 
     video_reader = VideoReader(filename)
-    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    connection.connect((client_ip, client_rtp_port))
-    logger.info("connected to (%s, %d)", client_ip, client_rtp_port)
+    connection = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     rtp_sequence_number = 0
     is_done = False
@@ -54,42 +52,32 @@ def stream_video(
             logger.info("video reader done reading, exiting")
             break
 
-        bin_frame = pickle.dumps(frame)
         data = {
             "version": 2,
             # "padding": 0, # does not support padding, defaults to 0
             # "extension": 0, # does not support extension, defaults to 0
             # "csrcCount": 0, # does not support other than 0
-            # "marker": 0,
+            "marker": 1,
             "payloadType": 26,  # MJPEG type
             "timestamp": video_reader.frame_counter - 1,
             "ssrc": 123,
             # "csrcList": [], # does not support other than empty list
-            # "sequenceNumber": self.rtpSequenceNumber.getThenIncrement(),
-            # "payload": pickle.dumps(fitPayload(frame))
+            "sequenceNumber": rtp_sequence_number,
+            "payload": pickle.dumps(fit_payload(frame)),
         }
+        rtp_sequence_number += 1
 
-        start = 0
-        while start < len(bin_frame):
-            end = min(start + rtp.PAYLOAD_SIZE, len(bin_frame))
-
-            data["payload"] = bin_frame[start:end]
-            data["marker"] = end == len(bin_frame)
-            data["sequenceNumber"] = rtp_sequence_number
-            rtp_sequence_number += 1
-
-            rtp_packet = rtp.packet_from_dict(data)
-            packet = ps.Packet(rtp_packet.encode())
-            try:
-                connection.sendall(packet.encode())
-            except ConnectionResetError as e:
-                logger.error(str(e))
-                is_done = True
-                break
-            except Exception as e:
-                logger.error("Expcetion when try to send RTP data, e = %s", str(e))
-                raise e
-            start = end
+        rtp_packet = rtp.packet_from_dict(data)
+        packet = ps.Packet(rtp_packet.encode())
+        try:
+            connection.sendto(packet.encode(), (client_ip, client_rtp_port))
+        except ConnectionResetError as e:
+            logger.error(str(e))
+            is_done = True
+            break
+        except Exception as e:
+            logger.error("Expcetion when try to send RTP data, e = %s", str(e))
+            raise e
 
     connection.close()
 

@@ -1,12 +1,41 @@
 import logging
 import pickle
 from multiprocessing import Queue
+from queue import PriorityQueue
 
 import cv2
 import numpy as np
+import math
 
 from npvs import rtp
 from npvs.common import get_logger
+
+
+def fit_payload_grey(image: np.ndarray) -> np.ndarray:
+    # convert to gray
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # downscale
+    h, w = image.shape
+    sz = rtp.PAYLOAD_SIZE
+    f = math.sqrt(sz / (h * w))
+    h = math.floor(h * f)
+    w = math.floor(w * f)
+    image = cv2.resize(image, (w, h))
+
+    return image
+
+
+def fit_payload(image: np.ndarray) -> np.ndarray:
+    # downscale
+    h, w, d = image.shape
+    sz = rtp.PAYLOAD_SIZE
+    f = math.sqrt(sz / (h * w * d))
+    h = math.floor(h * f)
+    w = math.floor(w * f)
+    image = cv2.resize(image, (w, h))
+
+    return image
 
 
 class VideoReader:
@@ -42,21 +71,20 @@ class VideoAssembler:
         # self.logger.setLevel(logging.DEBUG)
 
         self.packet_counter = 0
-        self.current_bin_frame = b""
+        self.packet_queue = PriorityQueue()
 
         self.frame_queue = frame_queue
 
     def add_packet(self, packet: rtp.Packet):
         self.logger.debug("adding packet = %s", str(packet))
-        if packet.sequence_number() != (self.packet_counter & 0xFFFF):
-            raise Exception(
-                f"unmatched sequence number, expected {self.packet_counter}, got {packet.sequence_number()}"
-            )
-        self.packet_counter += 1
-        self.current_bin_frame += packet.payload
-
-        if packet.marker():
-            frame = pickle.loads(self.current_bin_frame)
-            self.logger.debug("assembled frame shape = %s", str(frame.shape))
-            self.current_bin_frame = b""
+        self.packet_queue.put(packet)
+        # if miss buffering for 90 packet, ignore the packet counter
+        while (
+            packet.sequence_number() == (self.packet_counter & 0xFFFF)
+            or self.packet_queue.qsize() > 90
+        ):
+            packet = self.packet_queue.get()
+            self.packet_counter = packet.sequence_number() + 1
+            frame = pickle.loads(packet.payload)
             self.frame_queue.put(frame)
+            self.logger.debug("got frame shape = %s", str(frame.shape))
