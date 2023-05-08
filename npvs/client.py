@@ -124,26 +124,21 @@ class Client(MediaPlayer):
         return True
 
     def _setup_(self) -> bool:
-        # TODO: don't need to make new socket every time we initiate a
-        # RTP connection.
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("", 0))
-        self.client_rtp_port = int(s.getsockname()[1])
-        s.listen(1)
+        self.rtp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.rtp_socket.bind(("", 0))
+        self.client_rtp_port = int(self.rtp_socket.getsockname()[1])
 
         if not self.send_RTSP_request(rtsp.Method.SETUP):
-            s.close()
+            self.rtp_socket.close()
             return False
 
         self.rtsp_session = self.response["session"]
-        self.rtp_socket, _ = s.accept()
         self.rtp_process = Process(
             target=receive_assemble_packet,
             args=[self.rtp_socket, self.frame_queue, self.rtp_stop_flag],
         )
         self.rtp_process.start()
 
-        s.close()
         return True
 
     def _play_(self) -> bool:
