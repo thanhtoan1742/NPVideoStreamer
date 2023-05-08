@@ -7,7 +7,7 @@ from random import randint
 from npvs import ps, rtp, rtsp
 from npvs.common import *
 from npvs.media_player import MediaPlayer
-from npvs.video import VideoReader, fit_payload
+from npvs.video import VideoReader, fit_payload_grey as fit_payload
 
 FRAME_PER_CHECK = 50
 

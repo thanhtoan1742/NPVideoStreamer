@@ -99,8 +99,8 @@ class ClientApp(App):
             self.logger.debug("missed frame")
             return
 
-        self.logger.debug("got frame")
-        self.image.texture = toTexture(frame)
+        self.logger.info("got frame")
+        self.image.texture = toTextureGrey(frame)
 
 
 if __name__ == "__main__":
