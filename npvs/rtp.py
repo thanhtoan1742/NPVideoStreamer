@@ -13,10 +13,10 @@ class Packet:
         self.payload = payload
 
     def __eq__(self, o: object) -> bool:
-        return self.sequence_number() == o.sequenceNumber()
+        return self.sequence_number() == o.sequence_number()
 
     def __lt__(self, o: object) -> bool:
-        return self.sequence_number() < o.sequenceNumber()
+        return self.sequence_number() < o.sequence_number()
 
     def __str__(self) -> str:
         return f"[{self.sequence_number()} {self.marker()}]"
